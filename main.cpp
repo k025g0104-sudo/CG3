@@ -38,8 +38,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//ウィンドウクラスの登録
 	RegisterClass(&wc);
 
-
-
 	//クライアント領域のサイズ
 	const int32_t windowWidth = 1280;
 	const int32_t windowHeight = 720;
