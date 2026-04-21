@@ -4,6 +4,7 @@
   </Configurations>
   <Folder Name="/ソリューション項目/">
     <File Path=".editorconfig" />
+    <File Path="exclusion.dic" />
   </Folder>
-  <Project Path="CG2_00_01.vcxproj" />
+  <Project Path="CG2_00_01.vcxproj" Id="1456121e-e02d-4b2b-9e53-5e84e80efaae" />
 </Solution>
