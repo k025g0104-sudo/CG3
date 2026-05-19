@@ -244,7 +244,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	//出力ウィンドウへの文字出力
-	OutputDebugStringA("Hello,DirectX!\n");
+	Log("Hello,DirectX!\n");
 
 	MSG msg{};
 	//ウィンドウのｘボタンが押されるまでループ
