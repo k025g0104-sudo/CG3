@@ -126,6 +126,50 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//デバイスの生成がうまくいかなかった場合は起動できない
 	assert(device != nullptr);
 	Log("Complete create D3D12Device\n"); // 初期化完了のログを出す
+    
+#ifdef _DEBUG
+
+	ID3D12InfoQueue* infoQueue = nullptr;
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&infoQueue))))
+	{
+		//やばいエラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
+
+		//エラー時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
+
+		//警告時に止まる
+		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+
+		//抑制するメッセージのID
+		D3D12_MESSAGE_ID denyIds[] =
+		{
+			//Windows11でのDXGIデバックレイヤーとDX１２のデバックレイヤーの相互作用バグによるエラーメッセージ
+			D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE
+		};
+	
+		//抑制するレベル
+		D3D12_MESSAGE_SEVERITY severities[] =
+		{
+			D3D12_MESSAGE_SEVERITY_INFO
+		};
+
+		D3D12_INFO_QUEUE_FILTER filter{};
+
+		filter.DenyList.NumIDs = _countof(denyIds);
+		filter.DenyList.pIDList = denyIds;
+		filter.DenyList.NumSeverities = _countof(severities);
+		filter.DenyList.pSeverityList = severities;
+
+		//指定したメッセージの表示を抑制する
+		infoQueue->PushStorageFilter(&filter);
+
+		//解放
+		infoQueue->Release();
+	}
+
+#endif // _DEBUG
+
 
 		WNDCLASS wc{};
 	//ウィンドウプロシージャ
@@ -166,6 +210,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		wc.hInstance,//インスタンスハンドル
 		nullptr//オプション
 	);
+
+#ifdef _DEBUG
+
+	ID3D12Debug1* debugController = nullptr;
+
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+	{
+		//デバッグレイヤーを有効にする
+		debugController->EnableDebugLayer();
+
+		//さらにGPU側でもチェックを行うようにする
+		debugController->SetEnableSynchronizedCommandQueueValidation(true);
+	}
+
+#endif // _DEBUG
+
+
+
 	ShowWindow(hwnd, SW_SHOW);
 
 	ID3D12CommandQueue* commandQueue = nullptr;
@@ -234,10 +296,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//二つ目を作る
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 
-	/*typedef struct D3D12_CPU_DISCRIPTOR_HANDLE
+	typedef struct D3D12_CPU_DISCRIPTOR_HANDLE
 	{
 		SIZE_T ptr;
-	}D3D12_CPU_DESCRIPTOR_HANDLE;*/
+	}D3D12_CPU_DESCRIPTOR_HANDLE;
 
 	rtvHandles[0] = rtvStatHandle;
 
@@ -259,14 +321,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		else
 		{
 			//ゲームの処理
-			UINT backBufferINdex = swapChain->GetCurrentBackBufferIndex();
+			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
 			//描画先のRTVを設定する
-			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferINdex], false, nullptr);
+			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
 
 			//指定した色で画面全体をクリアする
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };//青っぽい色、RGBAの順番
-			commandList->ClearRenderTargetView(rtvHandles[backBufferINdex], clearColor, 0, nullptr);
+			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
 			hr = commandList->Close();
