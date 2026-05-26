@@ -5,9 +5,10 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <format>
+#include <dxgidebug.h>
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
-
+#pragma comment(lib,"dxguid.lib")
 std::string ConvertString(const std::wstring& str)
 {
 	if (str.empty()) 
@@ -155,7 +156,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
 
 		//警告時に止まる
-		infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
+		//infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
 
 		//抑制するメッセージのID
 		D3D12_MESSAGE_ID denyIds[] =
@@ -300,13 +301,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	MSG msg{};
 
-	//初期値０でFanceを作る
+	//初期値０でFenceを作る
 	ID3D12Fence* fence = nullptr;
 	uint64_t fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
 	
-	//FanceのSignalを待つためのイベントを作成する
+	//FenceのSignalを待つためのイベントを作成する
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     assert(fenceEvent != nullptr);
 	//ウィンドウのｘボタンが押されるまでループ
@@ -323,7 +324,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-			//TransitionBarrirの設定
+			//TransitionBarrerの設定
 			D3D12_RESOURCE_BARRIER barrier{};
 			//今回のバリアはTransition
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -335,7 +336,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
 			//遷移後のResourceState
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			//TransitionBarrirerを張る
+			//TransitionBarrerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
 			//描画先のRTVを設定する
@@ -345,11 +346,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };//青っぽい色、RGBAの順番
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
-			//今回はRebderTargetからpresntにする
+			//今回はRenderTargetからpresentにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
 			
-			//TransitionBarrirerを張る
+			//TransitionBarrerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
@@ -363,13 +364,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//GPUとOSに画面の交換を行うように指示する
 			swapChain->Present(1, 0);
 
-			//Fanceの値を更新
+			//Fenceの値を更新
 			fenceValue++;	
-			//GPUがここまでたどり着いたときに、Fanceの値をしてした値に代入するようにsignalを送る
+			//GPUがここまでたどり着いたときに、Fenceの値をしてした値に代入するようにsignalを送る
 			commandQueue->Signal(fence, fenceValue);
 
-			//Fanceの値が指定したsignalにたどり着いているか確認する
-			//GetCompleteValueの初期値はFance作成時にわたした初期値
+			//Fenceの値が指定したsignalにたどり着いているか確認する
+			//GetCompleteValueの初期値はFence作成時にわたした初期値
 			if (fence->GetCompletedValue() < fenceValue)
 			{
 				// 指定した値になるまで待つようにイベントを設定
@@ -392,6 +393,33 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		}
 	}
 
+	CloseHandle(fenceEvent);
+	fence->Release();
+	trvDescriptorHeap->Release();
+	swapChainResources[0]->Release();
+	swapChainResources[1]->Release();
+	swapChain->Release();
+	commandList->Release();
+	commandAllocator->Release();
+	commandQueue->Release();
+	device->Release();
+	useAdapter->Release();
+	dxiFactory->Release();
+#ifdef _DEBUG
+	debugController->Release();
+#endif // _DEBUG
+	CloseHandle(hwnd);
+
+	//リソースリークチェック
+	IDXGIDebug1* debug;
+	if (SUCCEEDED(DXGIGetDebugInterface1(0,IID_PPV_ARGS(&debug))))
+	{
+		debug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_APP, DXGI_DEBUG_RLO_ALL);
+		debug->ReportLiveObjects(DXGI_DEBUG_D3D12, DXGI_DEBUG_RLO_ALL);
+		debug->Release();
+	}
+	
 	return 0;
 }
 
