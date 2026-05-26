@@ -67,6 +67,22 @@ LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 //Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
+
+#ifdef _DEBUG
+
+	ID3D12Debug1* debugController = nullptr;
+
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+	{
+		//デバッグレイヤーを有効にする
+		debugController->EnableDebugLayer();
+
+		//さらにGPU側でもチェックを行うようにする
+		debugController->SetEnableSynchronizedCommandQueueValidation(true);
+	}
+
+#endif // _DEBUG
+
 	//DXGIファクトリーの生成
 	IDXGIFactory7* dxiFactory = nullptr;
 
@@ -211,23 +227,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		nullptr//オプション
 	);
 
-#ifdef _DEBUG
-
-	ID3D12Debug1* debugController = nullptr;
-
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
-	{
-		//デバッグレイヤーを有効にする
-		debugController->EnableDebugLayer();
-
-		//さらにGPU側でもチェックを行うようにする
-		debugController->SetEnableSynchronizedCommandQueueValidation(true);
-	}
-
-#endif // _DEBUG
-
-
-
 	ShowWindow(hwnd, SW_SHOW);
 
 	ID3D12CommandQueue* commandQueue = nullptr;
@@ -296,19 +295,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//二つ目を作る
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 
-	typedef struct D3D12_CPU_DISCRIPTOR_HANDLE
-	{
-		SIZE_T ptr;
-	}D3D12_CPU_DESCRIPTOR_HANDLE;
-
-	rtvHandles[0] = rtvStatHandle;
-
-	rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
 	//出力ウィンドウへの文字出力
 	Log("Hello,DirectX!\n");
 
 	MSG msg{};
+
+	ID3D12Fence* fence = nullptr;
+	uint64_t fenceValue = 0;
+	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
+	assert(SUCCEEDED(hr));
+	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	assert(fenceEvent != nullptr);
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
 	{
@@ -323,12 +320,25 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
+			D3D12_RESOURCE_BARRIER barrier{};
+			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			commandList->ResourceBarrier(1, &barrier);
+
 			//描画先のRTVを設定する
 			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
 
 			//指定した色で画面全体をクリアする
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };//青っぽい色、RGBAの順番
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+
+			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			commandList->ResourceBarrier(1, &barrier);
 
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
 			hr = commandList->Close();
@@ -340,6 +350,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			//GPUとOSに画面の交換を行うように指示する
 			swapChain->Present(1, 0);
+
+			fenceValue++;
+			commandQueue->Signal(fence, fenceValue);
+
+			// GPUが指定したFenceの値に到達したか確認する
+			if (fence->GetCompletedValue() < fenceValue)
+			{
+				// 指定した値になるまで待つようにイベントを設定
+				fence->SetEventOnCompletion(fenceValue, fenceEvent);
+				// イベントが発生するまでCPUを停止させる
+				WaitForSingleObject(fenceEvent, INFINITE);
+			}
+
+			// ここまで来ればGPUの実行が終わっているので、安心してResetできる
+			hr = commandAllocator->Reset();
+
+			// ここまで来ればGPUの実行が終わっているので、安心してResetできる
+			hr = commandAllocator->Reset();
 
 			//次のフレーム用のコマンドリストを準備
 			hr = commandAllocator->Reset();
