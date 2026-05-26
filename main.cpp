@@ -300,10 +300,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	MSG msg{};
 
+	//初期値０でFanceを作る
 	ID3D12Fence* fence = nullptr;
 	uint64_t fenceValue = 0;
 	hr = device->CreateFence(fenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence));
 	assert(SUCCEEDED(hr));
+	
+	//FanceのSignalを待つためのイベントを作成する
 	HANDLE fenceEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     assert(fenceEvent != nullptr);
 	//ウィンドウのｘボタンが押されるまでループ
@@ -320,13 +323,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
+			//TransitionBarrirの設定
 			D3D12_RESOURCE_BARRIER barrier{};
+			//今回のバリアはTransition
 			barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+			//Noneにしておく
 			barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+			//バリアをはる対象のリソース。現在のバックバッファに対して行う
 			barrier.Transition.pResource = swapChainResources[backBufferIndex];
+			//遷移前（現在）のResourceState
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+			//遷移後のResourceState
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			//TransitionBarrirerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
 			//描画先のRTVを設定する
@@ -336,8 +345,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };//青っぽい色、RGBAの順番
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
 
+			//今回はRebderTargetからpresntにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+			
+			//TransitionBarrirerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
@@ -351,10 +363,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//GPUとOSに画面の交換を行うように指示する
 			swapChain->Present(1, 0);
 
-			fenceValue++;
+			//Fanceの値を更新
+			fenceValue++;	
+			//GPUがここまでたどり着いたときに、Fanceの値をしてした値に代入するようにsignalを送る
 			commandQueue->Signal(fence, fenceValue);
 
-			// GPUが指定したFenceの値に到達したか確認する
+			//Fanceの値が指定したsignalにたどり着いているか確認する
+			//GetCompleteValueの初期値はFance作成時にわたした初期値
 			if (fence->GetCompletedValue() < fenceValue)
 			{
 				// 指定した値になるまで待つようにイベントを設定
