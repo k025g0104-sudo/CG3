@@ -7,6 +7,12 @@
 #include <format>
 #include <dxgidebug.h>
 #include <dxcapi.h>
+//#ifdef USE_IMGUI
+//#include "externals/imgui/imgui.h"
+//#include "externals/imgui/imgui_impl_win32.h"
+//#include "externals/imgui/imgui_impl_dx12.h"
+//extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+//#endif // USE_IMGUI
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
@@ -116,6 +122,13 @@ IDxcBlob* CompileShader(
 //ウィンドウプロシージャ
 LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+
+	//if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+	//{
+	//	return true;
+	//}
+
+
 	//メッセージに応じてゲーム固有の処理を行う
 	switch (msg)
 	{
@@ -130,6 +143,48 @@ LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
+ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
+
+{
+	ID3D12DescriptorHeap* descriptorHeap = nullptr;
+	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc{};
+	descriptorHeapDesc.Type = heapType;
+	descriptorHeapDesc.NumDescriptors = numDescriptors;
+	descriptorHeapDesc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	HRESULT hr = device->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(&descriptorHeap));
+	assert(SUCCEEDED(hr));
+	return descriptorHeap;
+}
+
+ID3D12Resource* CreateBuffferResource(ID3D12Device* device, size_t sizeInBytes)
+{
+	// 頂点リソース用のヒープの設定
+	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
+	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
+
+	// リソースの設定
+	D3D12_RESOURCE_DESC resourceDesc{};
+	resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resourceDesc.Width = sizeInBytes; // 引数で受け取ったサイズ
+	resourceDesc.Height = 1;
+	resourceDesc.DepthOrArraySize = 1;
+	resourceDesc.MipLevels = 1;
+	resourceDesc.SampleDesc.Count = 1;
+	resourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	ID3D12Resource* resource = nullptr;
+	HRESULT hr = device->CreateCommittedResource(
+		&uploadHeapProperties,
+		D3D12_HEAP_FLAG_NONE,
+		&resourceDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&resource)
+	);
+	assert(SUCCEEDED(hr));
+
+	return resource;
+}
 
 //Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
@@ -347,24 +402,41 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	assert(SUCCEEDED(hr));
 
 	//RTVの設定
+	//D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+	//rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;//フォーマットはスワップチェーンと同じ
+	//rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;//2Dテクスチャとして書き込む
+	////ディスクリプタの先頭を取得する
+	//D3D12_CPU_DESCRIPTOR_HANDLE rtvStatHandle = trvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	////RTVを２つ作るのでディスクリプタを二つ用意
+	//D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
+	////まず一つ目を作る。一つ目は最初のところにつくる。作る場所をこちらで指定してあげる必要がある
+	//rtvHandles[0] = rtvStatHandle;
+	//device->CreateRenderTargetView(swapChainResources[0], &rtvDesc, rtvHandles[0]);
+	////二つ目のディスクリプタハンドルを得る。
+	//rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+	////二つ目を作る
+	//device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
+	if (trvDescriptorHeap)
+	{
+		trvDescriptorHeap->Release();
+	}
+	ID3D12DescriptorHeap* rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
+	ID3D12DescriptorHeap* srvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
+
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;//フォーマットはスワップチェーンと同じ
-	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;//2Dテクスチャとして書き込む
-	//ディスクリプタの先頭を取得する
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvStatHandle = trvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	//RTVを２つ作るのでディスクリプタを二つ用意
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvStartHandle = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandles[2];
-	//まず一つ目を作る。一つ目は最初のところにつくる。作る場所をこちらで指定してあげる必要がある
-	rtvHandles[0] = rtvStatHandle;
+
+	rtvHandles[0] = rtvStartHandle;
 	device->CreateRenderTargetView(swapChainResources[0], &rtvDesc, rtvHandles[0]);
-	//二つ目のディスクリプタハンドルを得る。
+
 	rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	//二つ目を作る
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 
-
-
-	//出力ウィンドウへの文字出力
 	Log("Hello,DirectX!\n");
 
 	MSG msg{};
@@ -394,7 +466,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//RootSignature作成
 	D3D12_ROOT_SIGNATURE_DESC descriptionRootSignature{};
 	descriptionRootSignature.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+	//D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	//RootSignature作成
+	D3D12_ROOT_PARAMETER rootParameters[1] = {};
+	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[0].Descriptor.ShaderRegister = 0;
+	descriptionRootSignature.NumParameters = _countof(rootParameters);
+	descriptionRootSignature.pParameters = rootParameters;
+
+
 
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -469,25 +551,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = device->CreateGraphicsPipelineState(&graphicPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
 
-	//頂点リソース用のヒープの設定
-	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
-	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD;
-	//頂点リソースの設定
-	D3D12_RESOURCE_DESC vertexResourceDesc{};
-	//バッファリソース。テクスチャの場合はまた別の設定をする
-	vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	vertexResourceDesc.Width = sizeof(Vector4) * 3;
-	//バッファの場合はこれらは1にする決まり
-	vertexResourceDesc.Height = 1;
-	vertexResourceDesc.DepthOrArraySize = 1;
-	vertexResourceDesc.MipLevels = 1;
-	vertexResourceDesc.SampleDesc.Count = 1;
-	//バッファの場合はこれにする決まり
-	vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	//実際に頂点リソースをつくる
-	ID3D12Resource* vertexResource = nullptr;
-	hr = device->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
-	assert(SUCCEEDED(hr));
+
+
+	ID3D12Resource* vertexResource = CreateBuffferResource(device, sizeof(Vector4) * 3);
+
+	//マテリアル用のリソースを作る。今回はカラーつ分のサイズを用意する
+	ID3D12Resource* materialResource = CreateBuffferResource(device, sizeof(Vector4));
 
 	//頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
@@ -497,6 +566,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	vertexBufferView.SizeInBytes = sizeof(Vector4) * 3;
 	//１頂点あたりのサイズ
 	vertexBufferView.StrideInBytes = sizeof(Vector4);
+
+	
+	//マテリアルにデータを書き込む
+	Vector4* materialData = nullptr;
+	//書き込むためのアドレスを取得
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	//今回は赤を書き込んでみる
+	*materialData = { 1.0f, 0.0f, 0.0f, 1.0f };
 
 	//頂点リソースにデータを書き込む
 	Vector4* vertexData = nullptr;
@@ -527,6 +604,23 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 
 
+	//IMGUI_CHECKVERSION();
+	//ImGui::CreateContext();
+	//ImGui::StyleColorsDark();
+	//ImGui_ImplWin32_Init(hwnd);
+	//ImGui_ImplDX12_Init
+	//(
+	//	device,
+	//	swapChainDesc.BufferCount,
+	//	rtvDesc.Format,
+	//	srvDescriptorHeap,
+	//	srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+	//	srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	//);
+
+	//ImGuiIO& io = ImGui::GetIO();
+	//io.Fonts->Build();
+
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
 	{
@@ -540,6 +634,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
+
+			//ImGui_ImplDX12_NewFrame();
+			//ImGui_ImplWin32_NewFrame();
+			//ImGui::NewFrame();
+
+			////開発用UIの処理、実際に開発用のUIをだす場合はここをゲーム固有の処理に置き換える
+			//ImGui::ShowDemoWindow();
+
+			////Imgui
+			//ImGui::Render();
 
 			//TransitionBarrerの設定
 			D3D12_RESOURCE_BARRIER barrier{};
@@ -559,9 +663,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//描画先のRTVを設定する
 			commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
 
-			//指定した色で画面全体をクリアする
+			////指定した色で画面全体をクリアする
 			float clearColor[] = { 0.1f,0.25f,0.5f,1.0f };//青っぽい色、RGBAの順番
 			commandList->ClearRenderTargetView(rtvHandles[backBufferIndex], clearColor, 0, nullptr);
+
+			//描画用のDescriptorHeap
+			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap };
+			commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
 
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
@@ -569,7 +678,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetPipelineState(graphicsPipelineState);
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->DrawInstanced(3, 1, 0, 0);
+
+			//ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 			//今回はRenderTargetからpresentにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -603,48 +715,146 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				// イベントが発生するまでCPUを停止させる
 				WaitForSingleObject(fenceEvent, INFINITE);
 			}
-
-			// ここまで来ればGPUの実行が終わっているので、安心してResetできる
-			hr = commandAllocator->Reset();
-
-			// ここまで来ればGPUの実行が終わっているので、安心してResetできる
-			hr = commandAllocator->Reset();
-
-			//次のフレーム用のコマンドリストを準備
 			hr = commandAllocator->Reset();
 			assert(SUCCEEDED(hr));
+
 			hr = commandList->Reset(commandAllocator, nullptr);
 			assert(SUCCEEDED(hr));
 		}
 	}
 
+//#ifdef USE_IMGUI
+//	ImGui_ImplDX12_Shutdown();
+//	ImGui_ImplWin32_Shutdown();
+//	ImGui::DestroyContext();
+//#endif
+
+	if (includeHandler)
+	{
+		includeHandler->Release();
+	}
+
+	if (dxcComplier)
+	{
+		dxcComplier->Release();
+	}
+
+	if (dxcUtils)
+	{
+		dxcUtils->Release();
+	}
+
 	CloseHandle(fenceEvent);
-	fence->Release();
-	trvDescriptorHeap->Release();
-	swapChainResources[0]->Release();
-	swapChainResources[1]->Release();
-	swapChain->Release();
-	commandList->Release();
-	commandAllocator->Release();
-	commandQueue->Release();
-	device->Release();
-	useAdapter->Release();
-	dxiFactory->Release();
-	vertexResource->Release();
-	graphicsPipelineState->Release();
+
+	if (fence)
+	{
+		fence->Release();
+	}
+
+	// ★新しく作った正しいディスクリプタヒープだけを解放します
+	if (rtvDescriptorHeap)
+	{
+		rtvDescriptorHeap->Release();
+	}
+
+	if (srvDescriptorHeap)
+	{
+		srvDescriptorHeap->Release();
+	}
+
+	if (swapChainResources[0])
+	{
+		swapChainResources[0]->Release();
+	}
+
+	if (swapChainResources[1])
+	{
+		swapChainResources[1]->Release();
+	}
+
+	if (swapChain)
+	{
+		swapChain->Release();
+	}
+
+	if (commandList)
+	{
+		commandList->Release();
+	}
+
+	if (commandAllocator)
+	{
+		commandAllocator->Release();
+	}
+
+	if (commandQueue)
+	{
+		commandQueue->Release();
+	}
+
+	if (vertexResource)
+	{
+		vertexResource->Release();
+	}
+
+	if (materialResource)
+	{
+		materialResource->Release();
+	}
+
+	if (graphicsPipelineState)
+	{
+		graphicsPipelineState->Release();
+	}
+
 	if (errorBlob)
 	{
 		errorBlob->Release();
 	}
-	rootSignature->Release();
-	pixelShaderBlob->Release();
-	vertexShaderBlob->Release();
-#ifdef _DEBUG
-	debugController->Release();
-#endif // _DEBUG
-	CloseHandle(hwnd);
 
-	//リソースリークチェック
+	if (rootSignature)
+	{
+		rootSignature->Release();
+	}
+
+	if (pixelShaderBlob)
+	{
+		pixelShaderBlob->Release();
+	}
+
+	if (vertexShaderBlob)
+	{
+		vertexShaderBlob->Release();
+	}
+
+	if (device)
+	{
+		device->Release();
+	}
+
+	if (useAdapter)
+	{
+		useAdapter->Release();
+	}
+
+	if (dxiFactory)
+	{
+		dxiFactory->Release();
+	}
+
+#ifdef _DEBUG
+	if (debugController)
+	{
+		debugController->Release();
+	}
+#endif // _DEBUG
+
+	if (hwnd)
+	{
+		DestroyWindow(hwnd);
+	}
+
+	// リソースリークチェック
 	IDXGIDebug1* debug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug))))
 	{
