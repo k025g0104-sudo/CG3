@@ -7,21 +7,244 @@
 #include <format>
 #include <dxgidebug.h>
 #include <dxcapi.h>
-//#ifdef USE_IMGUI
-//#include "externals/imgui/imgui.h"
-//#include "externals/imgui/imgui_impl_win32.h"
-//#include "externals/imgui/imgui_impl_dx12.h"
-//extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-//#endif // USE_IMGUI
+#ifdef USE_IMGUI
+#include "externals/imgui/imgui.h"
+#include "externals/imgui/imgui_impl_win32.h"
+#include "externals/imgui/imgui_impl_dx12.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+#endif // USE_IMGUI
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
 
+struct Vector3
+{
+	float x, y, z;
+};
+
 struct Vector4
 {
 	float x, y, z, w;
 };
+
+struct Matrix4x4
+{
+	float m[4][4];
+};
+
+struct Transform
+{
+	Vector3 scale;
+
+	Vector3 rotate;
+
+	Vector3 translate;
+};
+
+struct CameraTransform
+{
+	Vector3 scale;
+	
+	Vector3 rotate;
+	
+	Vector3 translate;
+};
+
+
+Matrix4x4 MakeIdentity4x4()
+{
+	Matrix4x4 result{};
+	result.m[0][0] = 1.0f;
+	result.m[1][1] = 1.0f;
+	result.m[2][2] = 1.0f;
+	result.m[3][3] = 1.0f;
+	return result;
+}
+
+Matrix4x4 MakeIdentityMatrix4x4()
+{
+	Matrix4x4 result =
+	{
+		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+	};
+	return result;
+}
+
+
+Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+	Matrix4x4 result = {};
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			result.m[i][j] = 0.0f;
+			for (int k = 0; k < 4; k++)
+			{
+				result.m[i][j] += m1.m[i][k] * m2.m[k][j];
+			}
+		}
+	}
+	return result;
+}
+
+
+Matrix4x4 rotateX(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[1][1] = cosA;
+	result.m[1][2] = sinA;
+	result.m[2][1] = -sinA;
+	result.m[2][2] = cosA;
+	return result;
+}
+
+Matrix4x4 rotateY(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[0][0] = cosA;
+	result.m[0][2] = -sinA;
+	result.m[2][0] = sinA;
+	result.m[2][2] = cosA;
+	return result;
+}
+
+Matrix4x4 rotateZ(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[0][0] = cosA;
+	result.m[0][1] = sinA;
+	result.m[1][0] = -sinA;
+	result.m[1][1] = cosA;
+	return result;
+}
+
+
+Matrix4x4 MakeTranslationMatrix(const Vector3& translate)
+{
+	return
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		translate.x, translate.y, translate.z, 1.0f
+	};
+
+}
+
+Matrix4x4 MakeScaleMatrix(const Vector3& scale)
+{
+	return
+	{
+		scale.x, 0.0f, 0.0f, 0.0f,
+		0.0f, scale.y, 0.0f, 0.0f,
+		0.0f, 0.0f, scale.z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+}
+
+
+Matrix4x4 makeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate)
+{
+
+	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+
+	Matrix4x4 rotateXMatrix = rotateX(rotate.x);
+	Matrix4x4 rotateYMatrix = rotateY(rotate.y);
+	Matrix4x4 rotateZMatrix = rotateZ(rotate.z);
+
+	Matrix4x4 rotateMatrix = Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix));
+
+	Matrix4x4 translationMatrix = MakeTranslationMatrix(translate);
+
+	Matrix4x4 result = Multiply(scaleMatrix, Multiply(rotateMatrix, translationMatrix));
+
+	return result;
+}
+
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
+{
+	Matrix4x4 result = { 0 };
+	float tanHalfFovY = std::tan(fovY / 2.0f);
+
+	result.m[0][0] = 1.0f / (aspectRatio * tanHalfFovY);
+	result.m[1][1] = 1.0f / tanHalfFovY;
+	result.m[2][2] = farClip / (farClip - nearClip);
+	result.m[2][3] = 1.0f;
+	result.m[3][2] = (-nearClip * farClip) / (farClip - nearClip);
+
+	return result;
+}
+
+Matrix4x4 Inverse(const Matrix4x4& m)
+{
+	float mat[4][8];
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			mat[i][j] = m.m[i][j];
+			mat[i][j + 4] = (i == j) ? 1.0f : 0.0f;
+		}
+	}
+
+	for (int i = 0; i < 4; ++i)
+	{
+		int pivot = i;
+		for (int j = i + 1; j < 4; ++j)
+		{
+			if (std::abs(mat[j][i]) > std::abs(mat[pivot][i])) {
+				pivot = j;
+			}
+		}
+
+		for (int j = 0; j < 8; ++j)
+		{
+			std::swap(mat[i][j], mat[pivot][j]);
+		}
+
+		if (std::abs(mat[i][i]) < 1e-6f)
+		{
+			return MakeIdentityMatrix4x4();
+		}
+
+		float factor = mat[i][i];
+		for (int j = 0; j < 8; ++j)
+		{
+			mat[i][j] /= factor;
+		}
+
+		for (int k = 0; k < 4; ++k)
+		{
+			if (k != i)
+			{
+				float subFactor = mat[k][i];
+				for (int j = 0; j < 8; ++j)
+				{
+					mat[k][j] -= subFactor * mat[i][j];
+				}
+			}
+		}
+	}
+
+	Matrix4x4 result;
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			result.m[i][j] = mat[i][j + 4];
+		}
+	}
+	return result;
+}
+
 
 std::string ConvertString(const std::wstring& str)
 {
@@ -123,10 +346,10 @@ IDxcBlob* CompileShader(
 LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 
-	//if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
-	//{
-	//	return true;
-	//}
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+	{
+		return true;
+	}
 
 
 	//メッセージに応じてゲーム固有の処理を行う
@@ -156,7 +379,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTO
 	return descriptorHeap;
 }
 
-ID3D12Resource* CreateBuffferResource(ID3D12Device* device, size_t sizeInBytes)
+ID3D12Resource* CreateBufferResource(ID3D12Device* device, size_t sizeInBytes)
 {
 	// 頂点リソース用のヒープの設定
 	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
@@ -469,14 +692,23 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
 	//RootSignature作成
-	D3D12_ROOT_PARAMETER rootParameters[1] = {};
+	D3D12_ROOT_PARAMETER rootParameters[2] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[1].Descriptor.ShaderRegister = 0;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 	descriptionRootSignature.pParameters = rootParameters;
 
+	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
 
+	Matrix4x4* wvpData = nullptr;
+
+	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
+
+	*wvpData = MakeIdentity4x4();
 
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -551,12 +783,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = device->CreateGraphicsPipelineState(&graphicPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
 
-
-
-	ID3D12Resource* vertexResource = CreateBuffferResource(device, sizeof(Vector4) * 3);
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3);
 
 	//マテリアル用のリソースを作る。今回はカラーつ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBuffferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+
+	
 
 	//頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
@@ -572,8 +804,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Vector4* materialData = nullptr;
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+    	
+	Vector4 changeColor = { 1.0f,0.0f,0.0f,1.0f };
+
+
 	//今回は赤を書き込んでみる
 	*materialData = { 1.0f, 0.0f, 0.0f, 1.0f };
+
+	*materialData = changeColor;
 
 	//頂点リソースにデータを書き込む
 	Vector4* vertexData = nullptr;
@@ -604,22 +842,36 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 
 
-	//IMGUI_CHECKVERSION();
-	//ImGui::CreateContext();
-	//ImGui::StyleColorsDark();
-	//ImGui_ImplWin32_Init(hwnd);
-	//ImGui_ImplDX12_Init
-	//(
-	//	device,
-	//	swapChainDesc.BufferCount,
-	//	rtvDesc.Format,
-	//	srvDescriptorHeap,
-	//	srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
-	//	srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
-	//);
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui::StyleColorsDark();
+	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplDX12_Init
+	(
+		device,
+		swapChainDesc.BufferCount,
+		rtvDesc.Format,
+		srvDescriptorHeap,
+		srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart(),
+		srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart()
+	);
 
-	//ImGuiIO& io = ImGui::GetIO();
-	//io.Fonts->Build();
+	ImGuiIO& io = ImGui::GetIO();
+	io.Fonts->Build();
+
+	Transform transform
+	{
+	 { 1.0f, 1.0f, 1.0f },
+	 { 0.0f, 0.0f, 0.0f },
+	 { 0.0f, 0.0f, -0.5f }
+	};
+
+	CameraTransform cameraTransform
+	{
+		{ 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, -5.0f }
+	};
 
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
@@ -635,15 +887,31 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-			//ImGui_ImplDX12_NewFrame();
-			//ImGui_ImplWin32_NewFrame();
-			//ImGui::NewFrame();
+			ImGui_ImplDX12_NewFrame();
+			ImGui_ImplWin32_NewFrame();
+			ImGui::NewFrame();
 
-			////開発用UIの処理、実際に開発用のUIをだす場合はここをゲーム固有の処理に置き換える
-			//ImGui::ShowDemoWindow();
+			ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
-			////Imgui
-			//ImGui::Render();
+			ImGui::ColorEdit3("ChangeColor", reinterpret_cast<float*>(&changeColor));
+
+			ImGui::End();
+
+			transform.rotate.y += 0.02f;
+
+			Matrix4x4 projactonMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.f);
+			Matrix4x4 worldMatrix =makeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+			Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+			Matrix4x4 projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
+			*wvpData = worldViewProjectionMatrix;
+			
+
+			*materialData = changeColor;
+
+			//Imgui
+			ImGui::Render();
 
 			//TransitionBarrerの設定
 			D3D12_RESOURCE_BARRIER barrier{};
@@ -679,9 +947,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+
 			commandList->DrawInstanced(3, 1, 0, 0);
 
-			//ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 			//今回はRenderTargetからpresentにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
@@ -723,11 +994,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		}
 	}
 
-//#ifdef USE_IMGUI
-//	ImGui_ImplDX12_Shutdown();
-//	ImGui_ImplWin32_Shutdown();
-//	ImGui::DestroyContext();
-//#endif
+	ImGui_ImplDX12_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 
 	if (includeHandler)
 	{
@@ -751,7 +1020,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		fence->Release();
 	}
 
-	// ★新しく作った正しいディスクリプタヒープだけを解放します
+	
 	if (rtvDescriptorHeap)
 	{
 		rtvDescriptorHeap->Release();
