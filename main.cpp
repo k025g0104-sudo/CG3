@@ -891,11 +891,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
-			ImGui::Begin("TRIANGLE_CHANGE_COLOR");
+			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
-			ImGui::ColorEdit3("ChangeColor", reinterpret_cast<float*>(&changeColor));
+			ImGui::ShowDemoWindow();
 
-			ImGui::End();
+			//ImGui::End();
 
 			transform.rotate.y += 0.02f;
 
