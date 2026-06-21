@@ -19,22 +19,38 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
 
+struct Vector3
+{
+	float x, y, z;
+};
+
 //ベクター
 struct Vector4
 {
 	float x, y, z, w;
 };
 
-struct VertexData
-{
-	Vector4 position;
-	Vector4 texcord;
-};
-
 struct Matrix4x4
 {
 	float m[4][4];
+};
 
+struct Transform
+{
+	Vector3 scale;
+
+	Vector3 rotate;
+
+	Vector3 translate;
+};
+
+struct CameraTransform
+{
+	Vector3 scale;
+	
+	Vector3 rotate;
+	
+	Vector3 translate;
 };
 
 Matrix4x4 MakeIdentityMatrix4x4()
@@ -45,6 +61,181 @@ Matrix4x4 MakeIdentityMatrix4x4()
 	};
 	return result;
 }
+
+
+Matrix4x4 Multiply(const Matrix4x4& m1, const Matrix4x4& m2)
+{
+	Matrix4x4 result = {};
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			result.m[i][j] = 0.0f;
+			for (int k = 0; k < 4; k++)
+			{
+				result.m[i][j] += m1.m[i][k] * m2.m[k][j];
+			}
+		}
+	}
+	return result;
+}
+
+
+Matrix4x4 rotateX(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[1][1] = cosA;
+	result.m[1][2] = sinA;
+	result.m[2][1] = -sinA;
+	result.m[2][2] = cosA;
+	return result;
+}
+
+Matrix4x4 rotateY(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[0][0] = cosA;
+	result.m[0][2] = -sinA;
+	result.m[2][0] = sinA;
+	result.m[2][2] = cosA;
+	return result;
+}
+
+Matrix4x4 rotateZ(float angle)
+{
+	Matrix4x4 result = MakeIdentityMatrix4x4();
+	float cosA = std::cos(angle);
+	float sinA = std::sin(angle);
+	result.m[0][0] = cosA;
+	result.m[0][1] = sinA;
+	result.m[1][0] = -sinA;
+	result.m[1][1] = cosA;
+	return result;
+}
+
+
+Matrix4x4 MakeTranslationMatrix(const Vector3& translate)
+{
+	return
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		translate.x, translate.y, translate.z, 1.0f
+	};
+
+}
+
+Matrix4x4 MakeScaleMatrix(const Vector3& scale)
+{
+	return
+	{
+		scale.x, 0.0f, 0.0f, 0.0f,
+		0.0f, scale.y, 0.0f, 0.0f,
+		0.0f, 0.0f, scale.z, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+}
+
+
+Matrix4x4 makeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Vector3& translate)
+{
+
+	Matrix4x4 scaleMatrix = MakeScaleMatrix(scale);
+
+	Matrix4x4 rotateXMatrix = rotateX(rotate.x);
+	Matrix4x4 rotateYMatrix = rotateY(rotate.y);
+	Matrix4x4 rotateZMatrix = rotateZ(rotate.z);
+
+	Matrix4x4 rotateMatrix = Multiply(rotateXMatrix, Multiply(rotateYMatrix, rotateZMatrix));
+
+	Matrix4x4 translationMatrix = MakeTranslationMatrix(translate);
+
+	Matrix4x4 result = Multiply(scaleMatrix, Multiply(rotateMatrix, translationMatrix));
+
+	return result;
+}
+
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
+{
+	Matrix4x4 result = { 0 };
+	float tanHalfFovY = std::tan(fovY / 2.0f);
+
+	result.m[0][0] = 1.0f / (aspectRatio * tanHalfFovY);
+	result.m[1][1] = 1.0f / tanHalfFovY;
+	result.m[2][2] = farClip / (farClip - nearClip);
+	result.m[2][3] = 1.0f;
+	result.m[3][2] = (-nearClip * farClip) / (farClip - nearClip);
+
+	return result;
+}
+
+Matrix4x4 Inverse(const Matrix4x4& m)
+{
+	float mat[4][8];
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			mat[i][j] = m.m[i][j];
+			mat[i][j + 4] = (i == j) ? 1.0f : 0.0f;
+		}
+	}
+
+	for (int i = 0; i < 4; ++i)
+	{
+		int pivot = i;
+		for (int j = i + 1; j < 4; ++j)
+		{
+			if (std::abs(mat[j][i]) > std::abs(mat[pivot][i])) {
+				pivot = j;
+			}
+		}
+
+		for (int j = 0; j < 8; ++j)
+		{
+			std::swap(mat[i][j], mat[pivot][j]);
+		}
+
+		if (std::abs(mat[i][i]) < 1e-6f)
+		{
+			return MakeIdentityMatrix4x4();
+		}
+
+		float factor = mat[i][i];
+		for (int j = 0; j < 8; ++j)
+		{
+			mat[i][j] /= factor;
+		}
+
+		for (int k = 0; k < 4; ++k)
+		{
+			if (k != i)
+			{
+				float subFactor = mat[k][i];
+				for (int j = 0; j < 8; ++j)
+				{
+					mat[k][j] -= subFactor * mat[i][j];
+				}
+			}
+		}
+	}
+
+	Matrix4x4 result;
+	for (int i = 0; i < 4; ++i)
+	{
+		for (int j = 0; j < 4; ++j)
+		{
+			result.m[i][j] = mat[i][j + 4];
+		}
+	}
+	return result;
+}
+
 
 std::string ConvertString(const std::wstring& str)
 {
@@ -573,7 +764,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//RootSignature作成
 	D3D12_ROOT_PARAMETER rootParameters[3] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX; // 頂点シェーダー側で使うため
@@ -582,9 +773,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[1].Descriptor.ShaderRegister = 0;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 	descriptionRootSignature.pParameters = rootParameters;
-
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_POINT_MAG_MIP_LINEAR;
@@ -607,8 +800,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wvpResouce ->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
 	*wvpData = MakeIdentityMatrix4x4();
 
-
-	
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
 	ID3D10Blob* errorBlob = nullptr;
@@ -687,13 +878,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = device->CreateGraphicsPipelineState(&graphicPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
 	assert(SUCCEEDED(hr));
 
-
-
-	ID3D12Resource* vertexResource = CreateBuffferResource(device, sizeof(VertexData) * 3);
-
-	//マテリアル用のリソースを作る。今回はカラーつ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBuffferResource(device, sizeof(Vector4));
-
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * 3);
 
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 
@@ -706,7 +891,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	VertexData* vertexData = nullptr;
 
 	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-
 	//左下
 	vertexData[0].position = { -0.5f,-0.5f,0.0f,1.0f };
 	vertexData[0].texcord = { 0.0f,1.0f };
@@ -731,7 +915,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	*materialData = changeColor;
 
-	
+	//書き込むためのアドレスを取得
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	//左下
+	vertexData[0] = { -0.5f,-0.5f,0.0f,1.0f };
+	//上
+	vertexData[1] = { 0.0f,0.5f,0.0f,1.0f };
+	//左下
+	vertexData[2] = { 0.5f,-0.5f,0.0f,1.0f };
+
 	//ビューポート
 	D3D12_VIEWPORT viewport{};
 
@@ -773,12 +965,24 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ID3D12Resource* textureResouce = CreatetextureResouce(device, metadata);
 	UploadTextureData(textureResouce, mipImages);
 
+	Transform transform
+	{
+	 { 1.0f, 1.0f, 1.0f },
+	 { 0.0f, 0.0f, 0.0f },
+	 { 0.0f, 0.0f, -0.5f }
+	};
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
 
+	CameraTransform cameraTransform
+	{
+		{ 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 0.0f, 0.0f, -5.0f }
+	};
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = srvDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
 
@@ -812,7 +1016,22 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			ImGui::End();
 
-			*materialData = changeColor;
+			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
+
+			ImGui::ShowDemoWindow();
+
+			//ImGui::End();
+
+			transform.rotate.y += 0.02f;
+
+			Matrix4x4 projactonMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.f);
+			Matrix4x4 worldMatrix =makeAffineMatrix(transform.scale,transform.rotate,transform.translate);
+			Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+			Matrix4x4 projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
+			*wvpData = worldViewProjectionMatrix;
+			
 
 			//Imgui
 			ImGui::Render();
@@ -843,7 +1062,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
-
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
 
@@ -858,10 +1076,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
+			
+			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+
 			commandList->DrawInstanced(3, 1, 0, 0);
 
 			
 
+			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 			//今回はRenderTargetからpresentにする
@@ -910,7 +1132,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 #endif
-
 	if (includeHandler)
 	{
 		includeHandler->Release();
@@ -934,6 +1155,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 
 
+	
 	if (rtvDescriptorHeap)
 	{
 		rtvDescriptorHeap->Release();
