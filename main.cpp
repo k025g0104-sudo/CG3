@@ -43,6 +43,15 @@ struct Vector3
 	float x, y, z;
 };
 
+Vector3 Normalize(const Vector3& v)
+{
+	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
+	if (length == 0.0f) {
+		return { 0.0f, 0.0f, 0.0f };
+	}
+	return { v.x / length, v.y / length, v.z / length };
+}
+
 struct Vector4
 {
 	float x, y, z, w;
@@ -75,7 +84,28 @@ struct VertexData
 {
 	Vector4 position;
 	Vector2 texcoord;
+	Vector3 normal;
 };
+
+struct Material
+{
+	Vector4 color;
+	int32_t enavleLighting;
+};
+
+struct TransformationMatrix
+{
+	Matrix4x4 WVP;
+	Matrix4x4 world;
+};
+
+struct  DirectionalLight
+{
+	Vector4 color;
+	Vector3 dirction;
+	float intesity;
+};
+
 
 Matrix4x4 MakeIdentity4x4()
 {
@@ -786,6 +816,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	{
 		trvDescriptorHeap->Release();
 	}
+
 	ID3D12DescriptorHeap* rtvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	ID3D12DescriptorHeap* srvDescriptorHeap = CreateDescriptorHeap(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 
@@ -914,15 +945,20 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			Vector2 uvB = { (float)lon / kSubdivision, 1.0f - (float)(lat + 1) / kSubdivision };
 			Vector2 uvC = { (float)(lon + 1) / kSubdivision, 1.0f - (float)lat / kSubdivision };
 			Vector2 uvD = { (float)(lon + 1) / kSubdivision, 1.0f - (float)(lat + 1) / kSubdivision };
-		
-			vertexData[vertexIndex++] = { pA, uvA };
-			vertexData[vertexIndex++] = { pB, uvB };
-			vertexData[vertexIndex++] = { pC, uvC };
 
-			vertexData[vertexIndex++] = { pC, uvC };
-			vertexData[vertexIndex++] = { pB, uvB };
-			vertexData[vertexIndex++] = { pD, uvD };
+			
+			Vector3 nA = Normalize({ pA.x, pA.y, pA.z });
+			Vector3 nB = Normalize({ pB.x, pB.y, pB.z });
+			Vector3 nC = Normalize({ pC.x, pC.y, pC.z });
+			Vector3 nD = Normalize({ pD.x, pD.y, pD.z });
 
+			vertexData[vertexIndex++] = { pA, uvA, nA };
+			vertexData[vertexIndex++] = { pB, uvB, nB };
+			vertexData[vertexIndex++] = { pC, uvC, nC };
+
+			vertexData[vertexIndex++] = { pC, uvC, nC };
+			vertexData[vertexIndex++] = { pB, uvB, nB };
+			vertexData[vertexIndex++] = { pD, uvD, nD };
 		}
 
 	}
@@ -946,6 +982,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//一枚目の三角形
 	vertexDataSprite[0].position = { 0.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
+	vertexDataSprite[0].normal =   { 0.0f,0.0f,-1.0f };
 	vertexDataSprite[1].position = { 0.0f,0.0f,0.0f,1.0f };
 	vertexDataSprite[1].texcoord = { 0.0f,0.0f };
 	vertexDataSprite[2].position = { 640.0f,360.0f,0.0f,1.0f };
@@ -1025,7 +1062,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
 	//RootSignature作成
-	D3D12_ROOT_PARAMETER rootParameters[3] = {};
+	D3D12_ROOT_PARAMETER rootParameters[4] = {};
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
@@ -1035,8 +1072,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[3].Descriptor.ShaderRegister = 2;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 	descriptionRootSignature.pParameters = rootParameters;
+
+	ID3D12Resource* directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
+	DirectionalLight* directionalLightData = nullptr;
+	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
+
+	directionalLightData->color = { 1.0f,1.0f,1.0f,1.0f };
+	directionalLightData->dirction = Normalize({ 0.0f,-1.0f,0.0f });
+	directionalLightData->intesity = 1.0f;
 
 	D3D12_STATIC_SAMPLER_DESC staticSamplers[1] = {};
 	staticSamplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -1063,7 +1111,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ID3D10Blob* errorBlob = nullptr;
 
 	//InputLayout
-	D3D12_INPUT_ELEMENT_DESC inputElementDesc[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDesc[3] = {};
 	inputElementDesc[0].SemanticName = "POSITION";
 	inputElementDesc[0].SemanticIndex = 0;
 	inputElementDesc[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -1073,6 +1121,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	inputElementDesc[1].SemanticIndex = 0;
 	inputElementDesc[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDesc[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+	inputElementDesc[2].SemanticName = "NORMAL";
+	inputElementDesc[2].SemanticIndex = 0;
+	inputElementDesc[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDesc[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDesc;
@@ -1164,18 +1217,20 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[2] = { 0.5f,-0.5f,0.0f,1.0f };
 
 	//マテリアル用のリソースを作る。今回はカラーつ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
 	//マテリアルにデータを書き込む
-	Vector4* materialData = nullptr;
+	Material* materialData = nullptr;
+	Material* materialDataSprite = nullptr;
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
-
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
+	
 	Vector4 changeColor = { 1.0f,0.0f,0.0f,1.0f };
-
-	//今回は赤を書き込んでみる
-	*materialData = { 1.0f, 0.0f, 0.0f, 1.0f };
-
-	*materialData = changeColor;
+	materialData->color = changeColor;
+	materialData->enavleLighting = true;
+	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	materialDataSprite->enavleLighting = false;
 
 	//ビューポート
 	D3D12_VIEWPORT viewport{};
@@ -1260,6 +1315,26 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
+			ImGui::ShowDemoWindow();
+
+			ImGui::Begin("Lighting");
+			ImGui::ColorEdit4("Material Color", &materialData->color.x);
+			bool enableLighting = materialData->enavleLighting != 0;
+			if (ImGui::Checkbox("Enable Lighting", &enableLighting)) 
+			{
+				materialData->enavleLighting = enableLighting ? 1 : 0;
+			}
+			ImGui::Separator();
+			ImGui::ColorEdit4("Light Color", &directionalLightData->color.x);
+			ImGui::SliderFloat("Light Intensity", &directionalLightData->intesity, 0.0f, 10.0f);
+			static Vector3 lightDirection = directionalLightData->dirction;
+			if (ImGui::SliderFloat3("Light Direction", &lightDirection.x, -1.0f, 1.0f)) 
+			{
+				directionalLightData->dirction = Normalize(lightDirection);
+			}
+			ImGui::End();
+
+
 			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
 			ImGui::ShowDemoWindow();
@@ -1275,7 +1350,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			Matrix4x4 projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
 			*wvpData = worldViewProjectionMatrix;
-			*materialData = changeColor;
+			//*materialData = changeColor;
 			
 			Matrix4x4 worldMatrixSprite = makeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
 			Matrix4x4 viewMatrixSprite = MakeIdentity4x4();
@@ -1325,13 +1400,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			commandList->DrawInstanced(16 * 16 * 6, 1, 0, 0);
 		
 
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
+
+			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->DrawInstanced(6, 1, 0, 0);
 			
+		
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 			//今回はRenderTargetからpresentにする
@@ -1448,6 +1527,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	if (materialResource)
 	{
 		materialResource->Release();
+	}
+
+	if (materialResourceSprite)
+	{
+		materialResourceSprite->Release();
 	}
 
 	if (graphicsPipelineState)
