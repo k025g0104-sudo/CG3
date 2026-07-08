@@ -1098,13 +1098,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	descriptionRootSignature.pStaticSamplers = staticSamplers;
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
-	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(TransformationMatrix));
 
-	Matrix4x4* wvpData = nullptr;
+	TransformationMatrix* wvpData = nullptr;
 
 	wvpResource->Map(0, nullptr, reinterpret_cast<void**>(&wvpData));
 
-	*wvpData = MakeIdentity4x4();
+	wvpData->WVP = MakeIdentity4x4();
+	wvpData->world = MakeIdentity4x4();
 
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -1289,7 +1290,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	};
 
 	//TransformationMatrixのSprite
-	ID3D12Resource* transformationMatrixReourceSprite = CreateBufferResource(device, sizeof(Matrix4x4));
+	ID3D12Resource* transformationMatrixReourceSprite = CreateBufferResource(device, sizeof(TransformationMatrix));
     //データを書き込む
 	Matrix4x4* transformationMatrixDataSprite = nullptr;
 	//書き込むためのアドレスを取得
@@ -1349,7 +1350,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 			Matrix4x4 projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
-			*wvpData = worldViewProjectionMatrix;
+
+			wvpData->WVP = worldViewProjectionMatrix;
+			wvpData->world= worldMatrix;
 			//*materialData = changeColor;
 			
 			Matrix4x4 worldMatrixSprite = makeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
