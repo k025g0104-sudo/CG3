@@ -580,6 +580,7 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 //Windowsアプリでのエントリーポイント(main関数)
 
 
+bool useMonsterBall = true;
 
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
@@ -1268,6 +1269,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ImGuiIO& io = ImGui::GetIO();
 	io.Fonts->Build();
 
+	
+
 	Transform transform
 	{
 	 { 1.0f, 1.0f, 1.0f },
@@ -1335,6 +1338,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			}
 			ImGui::End();
 
+			ImGui::Begin("Texture");
+			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+			ImGui::End();
 
 			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
@@ -1401,7 +1407,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU2);
+			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
+			
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			commandList->DrawInstanced(16 * 16 * 6, 1, 0, 0);
@@ -1410,6 +1417,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->DrawInstanced(6, 1, 0, 0);
 			
