@@ -34,8 +34,6 @@ PixelShaderOutput main(VertexShaderOutput input)
     {
         float cos = saturate(dot(normalize(input.normal), -gDirectionalLight.dirction));
         //output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intesity;
-        output.color = gMaterial.color * textureColor * cos;
-
     }
     else
     {
