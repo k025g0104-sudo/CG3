@@ -57,6 +57,7 @@ struct Vector4
 	float x, y, z, w;
 };
 
+
 struct Matrix4x4
 {
 	float m[4][4];
@@ -91,6 +92,8 @@ struct Material
 {
 	Vector4 color;
 	int32_t enavleLighting;
+	float padding[3];
+	Matrix4x4 uvTransform;
 };
 
 struct TransformationMatrix
@@ -1245,8 +1248,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Vector4 changeColor = { 1.0f,0.0f,0.0f,1.0f };
 	materialData->color = changeColor;
 	materialData->enavleLighting = true;
+	materialData->uvTransform = MakeIdentity4x4();
 	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
 	materialDataSprite->enavleLighting = false;
+	materialDataSprite->uvTransform = MakeIdentity4x4();
 
 	//ビューポート
 	D3D12_VIEWPORT viewport{};
@@ -1304,6 +1309,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{1.0f,1.0f,1.0f},
 		{0.0f,0.0f,0.0f},
 		{0.0f,0.0f,0.0f}
+	};
+
+	Transform uvTransformSprite
+	{
+		{1.0f,1.0f,1.0f},
+		{0.0f,0.0f,0.0f},
+		{0.0f,0.0f,0.0f},
 	};
 
 	//TransformationMatrixのSprite
@@ -1366,6 +1378,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 			ImGui::End();
 
+			ImGui::Begin("UV");
+			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+			ImGui::DragFloat2("UVScale",&uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+			ImGui::SliderAngle("UVRRotate", &uvTransformSprite.rotate.z);
+			ImGui::End();
 			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
 			ImGui::ShowDemoWindow();
@@ -1390,6 +1407,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(0.0f, 0.0f, float(kClientWidth), float(kClientHeight), 0.0f, 100.0f);
 			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
 			*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
+
+			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
+			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvTransformSprite.rotate.z));
+			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
+			materialDataSprite->uvTransform = uvTransformMatrix;
+		
 
 			//Imgui
 			ImGui::Render();
