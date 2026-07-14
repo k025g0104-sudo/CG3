@@ -834,7 +834,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ID3D12Resource* textureResource2 = CreateTextureResouce(device, metadata2);
 	UploadTextureData(textureResource2, mipImages2);
 
-
 	//metadataを基にSRVの設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = metadata.format;
@@ -905,81 +904,18 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
 	//vertexData[5].texcoord = { 1.0f,1.0f };
 
-	const uint32_t kSubdivision = 16;
+	ModelData modelData = LoadObjFile("resources", "plane.obj");
 
-	const uint32_t kNumVertices = kSubdivision * kSubdivision * 6;
-
-	const float kRadius = 0.5f;
-
-	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * kNumVertices);
-
-	//頂点リソースにデータを書き込む
-	VertexData* vertexData = nullptr;
-	//書き込むのアドレス
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(VertexData) * modelData.vertics.size());
 
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
 	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-	vertexBufferView.SizeInBytes = sizeof(VertexData) * kNumVertices;
+	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertics.size());
 	vertexBufferView.StrideInBytes = sizeof(VertexData);
 
-	const float pi = 3.1415926535f;
-
-	float latStep = pi / kSubdivision;
-	float lonStep = (2.0f * pi) / kSubdivision;
-
-	uint32_t vertexIndex = 0;
-
-	for (uint32_t lat = 0; lat < kSubdivision; ++lat)
-	{
-		float phi = -3.1415926535f / 2.0f + lat * latStep;
-		float nextPhi = phi + latStep;
-
-		for (uint32_t lon = 0; lon < kSubdivision; ++lon)
-		{
-			float theta = lon * lonStep; 
-			float nextTheta = theta + lonStep;
-
-			Vector4 pA = { kRadius * std::cos(phi) * std::cos(theta), kRadius * std::sin(phi), kRadius * std::cos(phi) * std::sin(theta), 1.0f };
-			Vector4 pB = { kRadius * std::cos(nextPhi) * std::cos(theta), kRadius * std::sin(nextPhi), kRadius * std::cos(nextPhi) * std::sin(theta), 1.0f };
-			Vector4 pC = { kRadius * std::cos(phi) * std::cos(nextTheta), kRadius * std::sin(phi), kRadius * std::cos(phi) * std::sin(nextTheta), 1.0f };
-			Vector4 pD = { kRadius * std::cos(nextPhi) * std::cos(nextTheta), kRadius * std::sin(nextPhi), kRadius * std::cos(nextPhi) * std::sin(nextTheta), 1.0f };
-
-			Vector2 uvA = { (float)lon / kSubdivision, 1.0f - (float)lat / kSubdivision };
-			Vector2 uvB = { (float)lon / kSubdivision, 1.0f - (float)(lat + 1) / kSubdivision };
-			Vector2 uvC = { (float)(lon + 1) / kSubdivision, 1.0f - (float)lat / kSubdivision };
-			Vector2 uvD = { (float)(lon + 1) / kSubdivision, 1.0f - (float)(lat + 1) / kSubdivision };
-
-			
-			Vector3 nA = Normalize({ pA.x, pA.y, pA.z });
-			Vector3 nB = Normalize({ pB.x, pB.y, pB.z });
-			Vector3 nC = Normalize({ pC.x, pC.y, pC.z });
-			Vector3 nD = Normalize({ pD.x, pD.y, pD.z });
-
-			vertexData[vertexIndex++] = { pA, uvA, nA };
-			vertexData[vertexIndex++] = { pB, uvB, nB };
-			vertexData[vertexIndex++] = { pC, uvC, nC };
-
-			vertexData[vertexIndex++] = { pC, uvC, nC };
-			vertexData[vertexIndex++] = { pB, uvB, nB };
-			vertexData[vertexIndex++] = { pD, uvD, nD };
-		}
-
-	}
-
-	ID3D12Resource* indexResource = CreateBufferResource(device, sizeof(uint32_t) * kNumVertices);
-	uint32_t* indexData = nullptr;
-	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
-
-	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
-	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
-	indexBufferView.SizeInBytes = sizeof(uint32_t) * kNumVertices;
-	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-
-	for (uint32_t i = 0; i < kNumVertices; ++i)
-	{
-		indexData[i] = i;
-	}
+	VertexData* vertexData = nullptr;
+	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	std::memcpy(vertexData, modelData.vertics.data(), sizeof(VertexData) * modelData.vertics.size());
 
 	//Sprite用
 	ID3D12Resource* vertexResourceSprite = CreateBufferResource(device, sizeof(VertexData) * 6);
@@ -1453,10 +1389,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-			commandList->IASetIndexBuffer(&indexBufferView);
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			commandList->DrawIndexedInstanced(kNumVertices, 1, 0, 0, 0);
