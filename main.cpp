@@ -677,7 +677,6 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 				Vector2 texcoord = texcoords[elementIdices[1] - 1];
 				Vector3 nomral = nomrals[elementIdices[2] - 1];
 
-
 				posotion.x *= -1.0f;
 				nomral.x *= -1.0f;
 
@@ -694,10 +693,8 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 			modelData.material = LoadMatrialTemplateFile(directoryPath, materialFilename);
 		}
 	}
-
 	return modelData;
 }
-
 
 
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
@@ -1048,7 +1045,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	vertexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSprite));
 
-	//一枚目の三角形
 	vertexDataSprite[0].position = { 0.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
 	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };
@@ -1519,11 +1515,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
-			commandList->DrawInstanced(6, 1, 0, 0);
-
-			commandList->DrawInstanced(UINT(modelData.vertics.size()), 1, 0, 0);
-
-
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
