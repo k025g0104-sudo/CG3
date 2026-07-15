@@ -10,6 +10,7 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include <fstream>
 #include <sstream>
+#include <algorithm> 
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -90,6 +91,26 @@ struct VertexData
 	Vector3 normal;
 };
 
+bool operator==(const Vector2& a, const Vector2& b)
+{
+	return a.x == b.x && a.y == b.y;
+}
+
+bool operator==(const Vector3& a, const Vector3& b)
+{
+	return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+bool operator==(const Vector4& a, const Vector4& b)
+{
+	return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+bool operator==(const VertexData& a, const VertexData& b)
+{
+	return a.position == b.position && a.texcoord == b.texcoord && a.normal == b.normal;
+}
+
 struct Material
 {
 	Vector4 color;
@@ -101,7 +122,7 @@ struct Material
 struct MaterialData
 {
 	std::string textureFilepath;
-	
+
 };
 
 struct TransformationMatrix
@@ -120,6 +141,7 @@ struct  DirectionalLight
 struct ModelData
 {
 	std::vector<VertexData> vertics;
+	std::vector<uint32_t> indices;
 	MaterialData material;
 };
 
@@ -649,7 +671,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 		{
 			Vector2 texcoord;
 			s >> texcoord.x >> texcoord.y;
-			texcoord.y = 1.0f - texcoord.y; 
+			texcoord.y = 1.0f - texcoord.y;
 			texcoords.push_back(texcoord);
 		}
 		else if (identifier == "vn")
@@ -682,18 +704,40 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 
 				triangle[faceVertex] = { posotion, texcoord, nomral };
 			}
-			modelData.vertics.push_back(triangle[2]);
-			modelData.vertics.push_back(triangle[1]);
-			modelData.vertics.push_back(triangle[0]);
+
+			// 元の巻き順維持のため [2],[1],[0] の順で処理
+			for (int32_t i = 2; i >= 0; --i)
+			{
+				auto it = std::find(modelData.vertics.begin(), modelData.vertics.end(), triangle[i]);
+				if (it != modelData.vertics.end())
+				{
+					// 既存頂点を再利用
+					uint32_t index = static_cast<uint32_t>(std::distance(modelData.vertics.begin(), it));
+					modelData.indices.push_back(index);
+				}
+				else
+				{
+					// 新規頂点を追加
+					uint32_t newIndex = static_cast<uint32_t>(modelData.vertics.size());
+					modelData.vertics.push_back(triangle[i]);
+					modelData.indices.push_back(newIndex);
+				}
+			}
 		}
-		else if (identifier == "mtllib") // ★追加
+	
+		else if (identifier == "mtllib")   // ★これを追加
 		{
 			std::string materialFilename;
 			s >> materialFilename;
 			modelData.material = LoadMatrialTemplateFile(directoryPath, materialFilename);
 		}
+	
+	
+	
 	}
+
 	return modelData;
+
 }
 
 
@@ -1037,7 +1081,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//リソースの先頭のアドレスから使う
 	vertexbufferviewSprite.BufferLocation = vertexResourceSprite->GetGPUVirtualAddress();
 	//使用するリソースのサイズは頂点6つ分のサイズ
-	vertexbufferviewSprite.SizeInBytes = sizeof(VertexData) * 6;
+	vertexbufferviewSprite.SizeInBytes = sizeof(VertexData) * 4;
 	//１頂点あたりのサイズ
 	vertexbufferviewSprite.StrideInBytes = sizeof(VertexData);
 
@@ -1048,18 +1092,21 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	vertexDataSprite[0].position = { 0.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[0].texcoord = { 0.0f,1.0f };
 	vertexDataSprite[0].normal = { 0.0f,0.0f,-1.0f };
+
+	// 左上
 	vertexDataSprite[1].position = { 0.0f,0.0f,0.0f,1.0f };
 	vertexDataSprite[1].texcoord = { 0.0f,0.0f };
+	vertexDataSprite[1].normal = { 0.0f,0.0f,-1.0f };
+
+	// 右下
 	vertexDataSprite[2].position = { 640.0f,360.0f,0.0f,1.0f };
 	vertexDataSprite[2].texcoord = { 1.0f,1.0f };
+	vertexDataSprite[2].normal = { 0.0f,0.0f,-1.0f };
 
-	//2枚目の三角形
-	vertexDataSprite[3].position = { 0.0f,0.0f,0.0f,1.0f };
-	vertexDataSprite[3].texcoord = { 0.0f,0.0f };
-	vertexDataSprite[4].position = { 640.0f,0.0f,0.0f,1.0f };
-	vertexDataSprite[4].texcoord = { 1.0f,0.0f };
-	vertexDataSprite[5].position = { 640.0f,360.0f,0.0f,1.0f };
-	vertexDataSprite[5].texcoord = { 1.0f, 1.0f };
+	// 右上　★これが今まで欠けていた頂点
+	vertexDataSprite[3].position = { 640.0f,0.0f,0.0f,1.0f };
+	vertexDataSprite[3].texcoord = { 1.0f,0.0f };
+	vertexDataSprite[3].normal = { 0.0f,0.0f,-1.0f };
 
 	ID3D12Resource* depthStencilResouce = CreateDepthStencilTextureResouce(device, kClientWidth, kClientHeight);
 
@@ -1374,10 +1421,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//単位行列を書き込んでおく
 	*transformationMatrixDataSprite = MakeIdentity4x4();
 
+	ID3D12Resource* indexResource = CreateBufferResource(device, sizeof(uint32_t) * modelData.indices.size());
+	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
+	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
+	indexBufferView.SizeInBytes = UINT(sizeof(uint32_t) * modelData.indices.size());
+	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
+	uint32_t* indexData = nullptr;
+	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
+	std::memcpy(indexData, modelData.indices.data(), sizeof(uint32_t)* modelData.indices.size());
+
 	ID3D12Resource* indexResourceSprite = CreateBufferResource(device, sizeof(uint32_t) * 6);
 	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
 	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
-	indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) + 6;
+	indexBufferViewSprite.SizeInBytes = sizeof(uint32_t) * 6;
 	indexBufferViewSprite.Format = DXGI_FORMAT_R32_UINT;
 	uint32_t* indexDataSprite = nullptr;
 	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
@@ -1502,12 +1558,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			commandList->IASetIndexBuffer(&indexBufferView);   // ★追加
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-			commandList->DrawInstanced(UINT(modelData.vertics.size()), 1, 0, 0);
-
+			commandList->DrawIndexedInstanced(UINT(modelData.indices.size()), 1, 0, 0, 0);  
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 
@@ -1515,7 +1571,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
-
+			
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 
 			//今回はRenderTargetからpresentにする
