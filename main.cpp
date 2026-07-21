@@ -1798,45 +1798,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		fence->Release();
 	}
 
-
-	if (rtvDescriptorHeap)
-	{
-		rtvDescriptorHeap->Release();
-	}
-
-	if (srvDescriptorHeap)
-	{
-		srvDescriptorHeap->Release();
-	}
-
-	if (swapChainResources[0])
-	{
-		swapChainResources[0]->Release();
-	}
-
-	if (swapChainResources[1])
-	{
-		swapChainResources[1]->Release();
-	}
-
 	if (commandList)
 	{
 		commandList->Release();
-	}
-
-	if (vertexResource)
-	{
-		vertexResource->Release();
-	}
-
-	if (materialResource)
-	{
-		materialResource->Release();
-	}
-
-	if (materialResourceSprite)
-	{
-		materialResourceSprite->Release();
 	}
 
 	if (graphicsPipelineState)
