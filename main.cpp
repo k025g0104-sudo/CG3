@@ -12,6 +12,7 @@
 #include <sstream>
 #include <algorithm> 
 #include <wrl.h>
+#include <xaudio2.h>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -22,7 +23,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
 #pragma comment(lib,"dxcompiler.lib")
-
+#pragma comment(lib,"xaudio2.lib")
 D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -160,6 +161,31 @@ struct  D3DResourceLeakChecker
 
 
 	}
+};
+
+struct ChunKHeader
+{
+	char id[4];
+	int32_t size;
+};
+
+struct RiffHeader
+{
+	ChunKHeader chunk;
+	char type[4];
+};
+
+struct FormatChunk
+{
+	ChunKHeader chunk;
+	WAVEFORMATEX fat;
+};
+
+struct SoundData
+{
+	WAVEFORMATEX wfex;
+	BYTE* pBuffer;
+	unsigned int bufferSize;
 };
 
 class ResourceObject
@@ -779,6 +805,83 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 
 }
 
+SoundData SoundLoadWave(const char* filename)
+{
+	std::ifstream file;
+
+	file.open(filename, std::ios_base::binary);
+
+	assert(file.is_open());
+
+	RiffHeader riff;
+	file.read((char*)&riff, sizeof(riff));
+	if (strncmp(riff.chunk.id, "RIFF", 4) != 0)
+	{
+		assert(0);
+	}
+	if (strncmp(riff.type, "WAVE", 4) != 0)
+	{
+		assert(0);
+	}
+
+	FormatChunk format = {};
+	file.read((char*)&format, sizeof(ChunKHeader));
+	if (strncmp(format.chunk.id, "fmt ", 4) != 0)
+	{
+		assert(0);
+	}
+	assert(format.chunk.size <= sizeof(format.fat));
+	file.read((char*)&format.fat, format.chunk.size);
+	ChunKHeader data;
+	file.read((char*)&data, sizeof(data));
+	if (strncmp(data.id, "JUNk", 4) == 0)
+	{
+		file.seekg(data.size, std::ios_base::cur);
+		file.read((char*)&data, sizeof(data));
+	}
+	if (strncmp(data.id, "data", 4) != 0)
+	{
+		assert(0);
+	}
+	char* pBuffer = new char[data.size];
+	file.read(pBuffer, data.size);
+	file.close();
+
+	SoundData soundData = {};
+
+	soundData.wfex = format.fat;
+	soundData.pBuffer = reinterpret_cast<BYTE*>(pBuffer);
+	soundData.bufferSize = data.size;
+
+	return soundData;
+}
+
+void SoundUnlod(SoundData* soundData)
+{
+
+	delete[] soundData->pBuffer;
+
+	soundData->pBuffer = 0;
+	soundData->bufferSize = 0;
+	soundData->wfex = {};
+}
+
+void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData)
+{
+	HRESULT hr;
+
+	IXAudio2SourceVoice* pSourceVoice = nullptr;
+	hr = xAudio2->CreateSourceVoice(&pSourceVoice, &soundData.wfex);
+	assert(SUCCEEDED(hr));
+
+	XAUDIO2_BUFFER buf{};
+	buf.pAudioData = soundData.pBuffer;
+	buf.AudioBytes = soundData.bufferSize;
+	buf.Flags = XAUDIO2_END_OF_STREAM;
+
+	hr = pSourceVoice->SubmitSourceBuffer(&buf);
+	hr = pSourceVoice->Start();
+}
 
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
@@ -1031,6 +1134,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	const DirectX::TexMetadata& metadata2 = mipImages2.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = CreateTextureResouce(device, metadata2);
 	UploadTextureData(textureResource2.Get(), mipImages2);
+
+	SoundData soundData1 = SoundLoadWave("resource/Alarm01.wav");
 
 	//metadataを基にSRVの設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
@@ -1483,6 +1588,17 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3;  indexDataSprite[5] = 2;
 
 	DirectX::ScratchImage mipImages3 = LoadTexture(modelData.material.textureFilepath);
+
+	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
+	IXAudio2MasteringVoice* masterVoice;
+	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	hr = xAudio2->CreateMasteringVoice(&masterVoice);
+
+	SoundPlayerWave(xAudio2.Get(), soundData1);
+
+	xAudio2.Reset();
+
+	SoundUnlod(&soundData1);
 
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
