@@ -790,8 +790,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//適切なアダプタが見つからなかったので起動できない
 	assert(useAdapter != nullptr);
 
-	ID3D12Device* device = nullptr;
-
 	//機能レベルとログ出力用の文字列
 	D3D_FEATURE_LEVEL featureLevels[] =
 	{
@@ -1650,15 +1648,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		srvDescriptorHeap->Release();
 	}
 
-	if (swapChainResources[0])
-	{
-		swapChainResources[0]->Release();
-	}
-
-	if (swapChainResources[1])
-	{
-		swapChainResources[1]->Release();
-	}
 
 	if (swapChain)
 	{
@@ -1728,11 +1717,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	if (useAdapter)
 	{
 		useAdapter->Release();
-	}
-
-	if (dxiFactory)
-	{
-		dxiFactory->Release();
 	}
 
 #ifdef _DEBUG
