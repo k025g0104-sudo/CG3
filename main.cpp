@@ -13,6 +13,7 @@
 #include <algorithm> 
 #include <wrl.h>
 #include <xaudio2.h>
+#include "DebugCamera.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -689,7 +690,9 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 
 
 bool useMonsterBall = true;
-
+bool enableUvRotation = true;
+bool useDebugCamera = true;
+bool enableObjectRotation = true;
 MaterialData LoadMatrialTemplateFile(const std::string& directorypath, const std::string filename)
 {
 	MaterialData materialData;
@@ -1212,7 +1215,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
 	//vertexData[5].texcoord = { 1.0f,1.0f };
 
-	ModelData modelData = LoadObjFile("resource", "plane.obj");
+	ModelData modelData = LoadObjFile("resource", "axis.obj");
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData.vertics.size());
 
@@ -1618,6 +1621,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	hr = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
+
+	DebugCamera debugCamera;
+	debugCamera.Initialize();
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
 	{
@@ -1635,6 +1641,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			keyboard->Acquire();
 			BYTE key[256] = {};
 			keyboard->GetDeviceState(sizeof(key), key);
+			debugCamera.Update(key);
 			if (key[DIK_0])
 			{
 				OutputDebugStringA("Hit 0\n");
@@ -1671,25 +1678,56 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRRotate", &uvTransformSprite.rotate.z);
+			ImGui::Checkbox("Enable UV Rotation", &enableUvRotation);
 			ImGui::End();
 			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
+
+			ImGui::Begin("Camera");
+			ImGui::Checkbox("Use Debug Camera", &useDebugCamera);
+			ImGui::End();
+
+			ImGui::Begin("Object");
+			ImGui::Checkbox("Enable Object Rotation", &enableObjectRotation);
+			ImGui::End();
 
 			ImGui::ShowDemoWindow();
 
 			//ImGui::End();
 
-			transform.rotate.y += 0.02f;
+			if (enableObjectRotation)
+			{
+				transform.rotate.y += 0.02f;
+			}
 
 			Matrix4x4 worldMatrix = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
-			Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
-			Matrix4x4 projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+
+			Matrix4x4 viewMatrix;
+			Matrix4x4 projctionMatrix;
+
+			if (useDebugCamera)
+			{
+				// デバッグカメラ(キー操作で動くカメラ)
+				DebugCamera::Matrix4x4 dcView = debugCamera.GetViewMatrix();
+				DebugCamera::Matrix4x4 dcProj = debugCamera.GetProjectionMatrix();
+
+				memcpy(viewMatrix.m, dcView.m, sizeof(viewMatrix.m));
+				memcpy(projctionMatrix.m, dcProj.m, sizeof(projctionMatrix.m));
+			}
+			else
+			{
+				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+				viewMatrix = Inverse(cameraMatrix);
+				projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+			}
+
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
-			wvpData->WVP = worldViewProjectionMatrix;
+
+			wvpData->WVP = worldViewProjectionMatrix;   
 			wvpData->world = worldMatrix;
 
 			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
-			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvTransformSprite.rotate.z));
+			float uvRotateZ = enableUvRotation ? uvTransformSprite.rotate.z : 0.0f;
+			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvRotateZ));
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
