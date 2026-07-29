@@ -690,9 +690,8 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 
 
 bool useMonsterBall = true;
-bool enableUvRotation = true;
 bool useDebugCamera = true;
-bool enableObjectRotation = true;
+bool enableObjectRotation = false;
 MaterialData LoadMatrialTemplateFile(const std::string& directorypath, const std::string filename)
 {
 	MaterialData materialData;
@@ -1215,17 +1214,29 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
 	//vertexData[5].texcoord = { 1.0f,1.0f };
 
-	ModelData modelData = LoadObjFile("resource", "axis.obj");
+	const uint32_t kSubdivision = 16;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResource = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData.vertics.size());
+	ModelData modelData1 = LoadObjFile("resource", "plane.obj");
 
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-	vertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * modelData.vertics.size());
-	vertexBufferView.StrideInBytes = sizeof(VertexData);
+	// ---- Plane用バッファ ----
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData1.vertics.size());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane{};
+	vertexBufferViewPlane.BufferLocation = vertexResourcePlane->GetGPUVirtualAddress();
+	vertexBufferViewPlane.SizeInBytes = UINT(sizeof(VertexData) * modelData1.vertics.size());
+	vertexBufferViewPlane.StrideInBytes = sizeof(VertexData);
+	VertexData* vertexDataPlane = nullptr;
+	vertexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataPlane));
+	std::memcpy(vertexDataPlane, modelData1.vertics.data(), sizeof(VertexData) * modelData1.vertics.size());
 
-	VertexData* vertexData = nullptr;
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourcePlane = CreateBufferResource(device.Get(), sizeof(uint32_t) * modelData1.indices.size());
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewPlane{};
+	indexBufferViewPlane.BufferLocation = indexResourcePlane->GetGPUVirtualAddress();
+	indexBufferViewPlane.SizeInBytes = UINT(sizeof(uint32_t) * modelData1.indices.size());
+	indexBufferViewPlane.Format = DXGI_FORMAT_R32_UINT;
+	uint32_t* indexDataPlane = nullptr;
+	indexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane));
+	std::memcpy(indexDataPlane, modelData1.indices.data(), sizeof(uint32_t) * modelData1.indices.size());
+
 	std::memcpy(vertexData, modelData.vertics.data(), sizeof(VertexData) * modelData.vertics.size());
 
 	//Sprite用
@@ -1576,15 +1587,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//単位行列を書き込んでおく
 	*transformationMatrixDataSprite = MakeIdentity4x4();
 
-	Microsoft::WRL::ComPtr<ID3D12Resource>indexResource = CreateBufferResource(device.Get(), sizeof(uint32_t) * modelData.indices.size());
-	D3D12_INDEX_BUFFER_VIEW indexBufferView{};
-	indexBufferView.BufferLocation = indexResource->GetGPUVirtualAddress();
-	indexBufferView.SizeInBytes = UINT(sizeof(uint32_t) * modelData.indices.size());
-	indexBufferView.Format = DXGI_FORMAT_R32_UINT;
-	uint32_t* indexData = nullptr;
-	indexResource->Map(0, nullptr, reinterpret_cast<void**>(&indexData));
-	std::memcpy(indexData, modelData.indices.data(), sizeof(uint32_t) * modelData.indices.size());
-
 	Microsoft::WRL::ComPtr<ID3D12Resource>indexResourceSprite = CreateBufferResource(device.Get(), sizeof(uint32_t) * 6);
 	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
 	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
@@ -1594,8 +1596,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
 	indexDataSprite[0] = 0; indexDataSprite[1] = 1;  indexDataSprite[2] = 2;
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3;  indexDataSprite[5] = 2;
-
-	DirectX::ScratchImage mipImages3 = LoadTexture(modelData.material.textureFilepath);
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masterVoice;
@@ -1668,30 +1668,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			{
 				directionalLightData->dirction = Normalize(lightDirection);
 			}
-			ImGui::End();
-
 			ImGui::Begin("Texture");
 			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
-			ImGui::End();
 
 			ImGui::Begin("UV");
 			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
 			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
 			ImGui::SliderAngle("UVRRotate", &uvTransformSprite.rotate.z);
-			ImGui::Checkbox("Enable UV Rotation", &enableUvRotation);
 			ImGui::End();
 			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
 
-			ImGui::Begin("Camera");
-			ImGui::Checkbox("Use Debug Camera", &useDebugCamera);
-			ImGui::End();
-
-			ImGui::Begin("Object");
-			ImGui::Checkbox("Enable Object Rotation", &enableObjectRotation);
 			ImGui::End();
 
 			ImGui::ShowDemoWindow();
-
 			//ImGui::End();
 
 			if (enableObjectRotation)
@@ -1726,12 +1715,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			wvpData->world = worldMatrix;
 
 			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
-			float uvRotateZ = enableUvRotation ? uvTransformSprite.rotate.z : 0.0f;
 			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvRotateZ));
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
-
-			ResourceObject depthStencilResource = CreateDepthStencilTextureResouce(device.Get(), kClientWidth, kClientHeight);
 
 			//Imgui
 			ImGui::Render();
@@ -1764,7 +1750,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ID3D12DescriptorHeap* descriptorHeaps[] = { srvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(1, descriptorHeaps);
 
-
 			commandList->RSSetViewports(1, &viewport);
 			commandList->RSSetScissorRects(1, &scissorRect);
 			commandList->SetGraphicsRootSignature(rootSignature);
@@ -1782,12 +1767,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
-
 			//今回はRenderTargetからpresentにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
