@@ -1832,7 +1832,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			ImGui::Begin("Settings");
 			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
-
 			if (ImGui::CollapsingHeader("Lighting"))
 			{
 				ImGui::ColorEdit4("Material Color", &materialData->color.x);
