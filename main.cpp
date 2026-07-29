@@ -122,7 +122,7 @@ bool operator==(const VertexData& a, const VertexData& b)
 struct Material
 {
 	Vector4 color;
-	int32_t enavleLighting;
+	int32_t lightingType;
 	float padding[3];
 	Matrix4x4 uvTransform;
 };
@@ -1636,10 +1636,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	Vector4 changeColor = { 1.0f,1.0f,1.0f,1.0f };
 	materialData->color = changeColor;
-	materialData->enavleLighting = true;
+	materialData->lightingType = 2;
 	materialData->uvTransform = MakeIdentity4x4();
 	materialDataSprite->color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	materialDataSprite->enavleLighting = false;
+	materialDataSprite->lightingType = 0;
 	materialDataSprite->uvTransform = MakeIdentity4x4();
 
 	//ビューポート
@@ -1835,11 +1835,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			if (ImGui::CollapsingHeader("Lighting"))
 			{
 				ImGui::ColorEdit4("Material Color", &materialData->color.x);
-				bool enableLighting = materialData->enavleLighting != 0;
-				if (ImGui::Checkbox("Enable Lighting", &enableLighting))
-				{
-					materialData->enavleLighting = enableLighting ? 1 : 0;
-				}
+
+				ImGui::Text("Lighting Type");
+				ImGui::RadioButton("None", &materialData->lightingType, 0);
+				ImGui::SameLine();
+				ImGui::RadioButton("Lambert", &materialData->lightingType, 1);
+				ImGui::SameLine();
+				ImGui::RadioButton("Half-Lambert", &materialData->lightingType, 2);
+
 				ImGui::Separator();
 				ImGui::ColorEdit4("Light Color", &directionalLightData->color.x);
 				ImGui::SliderFloat("Light Intensity", &directionalLightData->intesity, 0.0f, 10.0f);
@@ -2008,7 +2011,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			{
 				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
-				projctionMatrix = MakePerspectiveFovMatrix(0.45f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			}
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));

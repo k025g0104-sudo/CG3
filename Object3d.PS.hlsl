@@ -3,7 +3,7 @@
 struct Material
 {
     float32_t4 color;
-    int32_t enavleLighting;
+    int32_t lightingType; 
     float32_t3 padding;
     float32_t4x4 uvTransform;
 };
@@ -32,16 +32,22 @@ PixelShaderOutput main(VertexShaderOutput input)
     float32_t4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float32_t4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
 
-    if (gMaterial.enavleLighting != 0)
+    float32_t3 ligthFactor = float32_t3(1.0f, 1.0f, 1.0f);
+
+    if (gMaterial.lightingType == 1)
+    {
+        float NdotL = dot(normalize(input.normal), -gDirectionalLight.dirction);
+        float cos = saturate(NdotL);
+        ligthFactor = gDirectionalLight.color.rgb * cos * gDirectionalLight.intesity;
+    }
+    else if (gMaterial.lightingType == 2)
     {
         float NdotL = dot(normalize(input.normal), -gDirectionalLight.dirction);
         float cos = pow(NdotL * 0.5f + 0.5f, 2.0f);
-        output.color = gMaterial.color * textureColor * gDirectionalLight.color * cos * gDirectionalLight.intesity;
+        ligthFactor = gDirectionalLight.color.rgb * cos * gDirectionalLight.intesity;
     }
-    else
-    {
-        output.color = gMaterial.color * textureColor;
-    }
+
+    output.color = gMaterial.color * textureColor * float32_t4(ligthFactor, 1.0f);
 
     return output;
 }

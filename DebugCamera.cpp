@@ -198,38 +198,41 @@ void DebugCamera::Initialize()
 void DebugCamera::Update(const BYTE* key, const DIMOUSESTATE2& mouse)
 {
 	const float moveSpeed = 0.5f;
-	const float mouseRotSpeed = 0.0005f;   // マウス回転の感度
-	const float wheelZoomSpeed = 0.05f;   // ホイールズームの感度
+	const float rotSpeed = 0.02f;
+	const float mouseRotSpeed = 0.0005f; 
+	const float wheelZoomSpeed = 0.05f; 
 
-	// ---- 移動(累積回転行列を使って移動ベクトルを回転させる) ----
-	Vector3 localMove = { 0.0f, 0.0f, 0.0f };
+	if (key[DIK_Q])
 	{
 		Vector3 move = TransformNormal({ 0, 0, moveSpeed }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
-	if (key[DIK_S])
+	if (key[DIK_E])
 	{
 		Vector3 move = TransformNormal({ 0, 0, -moveSpeed }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
+
 	if (key[DIK_D])
-	{
-		Vector3 move = TransformNormal({ moveSpeed, 0, 0 }, matRot_);
-		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
-	}
-	if (key[DIK_A])
 	{
 		Vector3 move = TransformNormal({ -moveSpeed, 0, 0 }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
-	if (key[DIK_E])
+	if (key[DIK_A])
 	{
-		Vector3 move = TransformNormal({ 0, moveSpeed, 0 }, matRot_);
+		Vector3 move = TransformNormal({ moveSpeed, 0, 0 }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
-	if (key[DIK_Q])
+
+
+	if (key[DIK_W])
 	{
 		Vector3 move = TransformNormal({ 0, -moveSpeed, 0 }, matRot_);
+		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
+	}
+	if (key[DIK_S])
+	{
+		Vector3 move = TransformNormal({ 0, moveSpeed, 0 }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
 
