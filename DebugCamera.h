@@ -16,7 +16,7 @@ public:
 
 	void Initialize();
 
-	void Update(const BYTE* key);
+	void Update(const BYTE* key, const DIMOUSESTATE2& mouse);
 
 	const Matrix4x4& GetViewMatrix() const { return viewMatrix_; }
 	const Matrix4x4& GetProjectionMatrix() const { return projectionMatrix_; }

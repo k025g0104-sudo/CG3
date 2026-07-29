@@ -689,9 +689,13 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 //Windowsアプリでのエントリーポイント(main関数)
 
 
-bool useMonsterBall = true;
+bool useMonsterBall = false;
 bool useDebugCamera = true;
 bool enableObjectRotation = false;
+bool planeMode = true;
+bool sphereMode = false;
+bool bunnyMode = false;
+bool bunnySphereMode = false;
 MaterialData LoadMatrialTemplateFile(const std::string& directorypath, const std::string filename)
 {
 	MaterialData materialData;
@@ -810,6 +814,81 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 
 	return modelData;
 
+}
+
+ModelData MakeSphere(uint32_t kSubdivision)
+{
+	ModelData modelData;
+
+	uint32_t vertexCount = kSubdivision * kSubdivision * 6;
+	modelData.vertics.resize(vertexCount);
+
+	const float pi = 3.141592654f;
+	const float kLonEvery = pi * 2.0f / float(kSubdivision);
+	const float kLatEvery = pi / float(kSubdivision);
+
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex)
+	{
+		float lat = -pi / 2.0f + kLatEvery * latIndex;
+
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex)
+		{
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+			float lon = lonIndex * kLonEvery;
+
+			modelData.vertics[start].position.x = cosf(lat) * cosf(lon);
+			modelData.vertics[start].position.y = sinf(lat);
+			modelData.vertics[start].position.z = cosf(lat) * sinf(lon);
+			modelData.vertics[start].position.w = 1.0f;
+			modelData.vertics[start].texcoord.x = float(lonIndex) / float(kSubdivision);
+			modelData.vertics[start].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			modelData.vertics[start].normal.x = modelData.vertics[start].position.x;
+			modelData.vertics[start].normal.y = modelData.vertics[start].position.y;
+			modelData.vertics[start].normal.z = modelData.vertics[start].position.z;
+
+			modelData.vertics[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
+			modelData.vertics[start + 1].position.y = sinf(lat + kLatEvery);
+			modelData.vertics[start + 1].position.z = cosf(lat + kLatEvery) * sinf(lon);
+			modelData.vertics[start + 1].position.w = 1.0f;
+			modelData.vertics[start + 1].texcoord.x = float(lonIndex) / float(kSubdivision);
+			modelData.vertics[start + 1].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			modelData.vertics[start + 1].normal.x = modelData.vertics[start + 1].position.x;
+			modelData.vertics[start + 1].normal.y = modelData.vertics[start + 1].position.y;
+			modelData.vertics[start + 1].normal.z = modelData.vertics[start + 1].position.z;
+
+			modelData.vertics[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
+			modelData.vertics[start + 2].position.y = sinf(lat);
+			modelData.vertics[start + 2].position.z = cosf(lat) * sinf(lon + kLonEvery);
+			modelData.vertics[start + 2].position.w = 1.0f;
+			modelData.vertics[start + 2].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
+			modelData.vertics[start + 2].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			modelData.vertics[start + 2].normal.x = modelData.vertics[start + 2].position.x;
+			modelData.vertics[start + 2].normal.y = modelData.vertics[start + 2].position.y;
+			modelData.vertics[start + 2].normal.z = modelData.vertics[start + 2].position.z;
+
+			modelData.vertics[start + 3] = modelData.vertics[start + 2];
+
+			modelData.vertics[start + 4] = modelData.vertics[start + 1];
+
+			modelData.vertics[start + 5].position.x = cosf(lat + kLatEvery) * cosf(lon + kLonEvery);
+			modelData.vertics[start + 5].position.y = sinf(lat + kLatEvery);
+			modelData.vertics[start + 5].position.z = cosf(lat + kLatEvery) * sinf(lon + kLonEvery);
+			modelData.vertics[start + 5].position.w = 1.0f;
+			modelData.vertics[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
+			modelData.vertics[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			modelData.vertics[start + 5].normal.x = modelData.vertics[start + 5].position.x;
+			modelData.vertics[start + 5].normal.y = modelData.vertics[start + 5].position.y;
+			modelData.vertics[start + 5].normal.z = modelData.vertics[start + 5].position.z;
+		}
+	}
+
+	modelData.indices.resize(vertexCount);
+	for (uint32_t i = 0; i < vertexCount; ++i)
+	{
+		modelData.indices[i] = i;
+	}
+
+	return modelData;
 }
 
 SoundData SoundLoadWave(const char* filename)
@@ -1217,6 +1296,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	const uint32_t kSubdivision = 16;
 
 	ModelData modelData1 = LoadObjFile("resource", "plane.obj");
+	ModelData sphereData = MakeSphere(kSubdivision);
+
+	ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
 
 	// ---- Plane用バッファ ----
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData1.vertics.size());
@@ -1237,8 +1319,43 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane));
 	std::memcpy(indexDataPlane, modelData1.indices.data(), sizeof(uint32_t) * modelData1.indices.size());
 
-	std::memcpy(vertexData, modelData.vertics.data(), sizeof(VertexData) * modelData.vertics.size());
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData2.vertics.size());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane2{};
+	vertexBufferViewPlane2.BufferLocation = vertexResourcePlane2->GetGPUVirtualAddress();
+	vertexBufferViewPlane2.SizeInBytes = UINT(sizeof(VertexData) * modelData2.vertics.size());
+	vertexBufferViewPlane2.StrideInBytes = sizeof(VertexData);
+	VertexData* vertexDataPlane2 = nullptr;
+	vertexResourcePlane2->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataPlane2));
+	std::memcpy(vertexDataPlane2, modelData2.vertics.data(), sizeof(VertexData) * modelData2.vertics.size());
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(uint32_t) * modelData2.indices.size());
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewPlane2{};
+	indexBufferViewPlane2.BufferLocation = indexResourcePlane2->GetGPUVirtualAddress();
+	indexBufferViewPlane2.SizeInBytes = UINT(sizeof(uint32_t) * modelData2.indices.size());
+	indexBufferViewPlane2.Format = DXGI_FORMAT_R32_UINT;
+	uint32_t* indexDataPlane2 = nullptr;
+	indexResourcePlane2->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane2));
+	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());
+
+
+	// ---- Sphere用バッファ ----
+	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
+	vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
+	vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereData.vertics.size());
+	vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
+	VertexData* vertexDataSphere = nullptr;
+	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
+	std::memcpy(vertexDataSphere, sphereData.vertics.data(), sizeof(VertexData) * sphereData.vertics.size());
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSphere = CreateBufferResource(device.Get(), sizeof(uint32_t) * sphereData.indices.size());
+	D3D12_INDEX_BUFFER_VIEW indexBufferViewSphere{};
+	indexBufferViewSphere.BufferLocation = indexResourceSphere->GetGPUVirtualAddress();
+	indexBufferViewSphere.SizeInBytes = UINT(sizeof(uint32_t) * sphereData.indices.size());
+	indexBufferViewSphere.Format = DXGI_FORMAT_R32_UINT;
+	uint32_t* indexDataSphere = nullptr;
+	indexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSphere));
+	std::memcpy(indexDataSphere, sphereData.indices.data(), sizeof(uint32_t) * sphereData.indices.size());
 	//Sprite用
 	Microsoft::WRL::ComPtr<ID3D12Resource>vertexResourceSprite = CreateBufferResource(device.Get(), sizeof(VertexData) * 4);
 
@@ -1385,6 +1502,18 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wvpData->WVP = MakeIdentity4x4();
 	wvpData->world = MakeIdentity4x4();
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceBunny = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	TransformationMatrix* wvpDataBunny = nullptr;
+	wvpResourceBunny->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataBunny));
+	wvpDataBunny->WVP = MakeIdentity4x4();
+	wvpDataBunny->world = MakeIdentity4x4();
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceSphere = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	TransformationMatrix* wvpDataSphere = nullptr;
+	wvpResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataSphere));
+	wvpDataSphere->WVP = MakeIdentity4x4();
+	wvpDataSphere->world = MakeIdentity4x4();
+
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
 	ID3D10Blob* errorBlob = nullptr;
@@ -1505,7 +1634,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&materialDataSprite));
 
-	Vector4 changeColor = { 1.0f,0.0f,0.0f,1.0f };
+	Vector4 changeColor = { 1.0f,1.0f,1.0f,1.0f };
 	materialData->color = changeColor;
 	materialData->enavleLighting = true;
 	materialData->uvTransform = MakeIdentity4x4();
@@ -1557,6 +1686,22 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	 { 0.0f, 0.0f, -0.5f }
 	};
 
+	const Transform transFormReset = transform;
+
+	Transform bunnyTransform
+	{
+		{ 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 4.0f, 0.0f, 0.0f }
+	};
+
+	Transform sphereTransform
+	{
+		{ 1.0f, 1.0f, 1.0f },
+		{ 0.0f, 0.0f, 0.0f },
+		{ 2.0f, 0.0f, 0.0f }
+	};
+
 	CameraTransform cameraTransform
 	{
 		{ 1.0f, 1.0f, 1.0f },
@@ -1571,12 +1716,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{0.0f,0.0f,0.0f}
 	};
 
+	const Transform transFormSpriteReset = transformSprite;
+
 	Transform uvTransformSprite
 	{
 		{1.0f,1.0f,1.0f},
 		{0.0f,0.0f,0.0f},
 		{0.0f,0.0f,0.0f},
 	};
+
+	const Transform uvTransfromSpriteReset = uvTransformSprite;
 
 	//TransformationMatrixのSprite
 	Microsoft::WRL::ComPtr<ID3D12Resource>transformationMatrixReourceSprite = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
@@ -1587,6 +1736,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//単位行列を書き込んでおく
 	*transformationMatrixDataSprite = MakeIdentity4x4();
 
+
 	Microsoft::WRL::ComPtr<ID3D12Resource>indexResourceSprite = CreateBufferResource(device.Get(), sizeof(uint32_t) * 6);
 	D3D12_INDEX_BUFFER_VIEW indexBufferViewSprite{};
 	indexBufferViewSprite.BufferLocation = indexResourceSprite->GetGPUVirtualAddress();
@@ -1596,6 +1746,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSprite));
 	indexDataSprite[0] = 0; indexDataSprite[1] = 1;  indexDataSprite[2] = 2;
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3;  indexDataSprite[5] = 2;
+
+	if (bunnyMode)
+	{
+		DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);
+	}
+	else
+	{
+		DirectX::ScratchImage mipImages3 = LoadTexture(modelData1.material.textureFilepath);
+	}
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masterVoice;
@@ -1622,8 +1781,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(hr));
 
+	IDirectInputDevice8* mouse = nullptr;
+	hr = directInput->CreateDevice(GUID_SysMouse, &mouse, NULL);
+	assert(SUCCEEDED(hr));
+
+	hr = mouse->SetDataFormat(&c_dfDIMouse2);
+	assert(SUCCEEDED(hr));
+
+	hr = mouse->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
+	assert(SUCCEEDED(hr));
+
 	DebugCamera debugCamera;
 	debugCamera.Initialize();
+
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
 	{
@@ -1641,7 +1811,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			keyboard->Acquire();
 			BYTE key[256] = {};
 			keyboard->GetDeviceState(sizeof(key), key);
-			debugCamera.Update(key);
+
+			mouse->Acquire();
+			DIMOUSESTATE2 mouseState = {};
+			mouse->GetDeviceState(sizeof(mouseState), &mouseState);
+
+			debugCamera.Update(key, mouseState);
+
 			if (key[DIK_0])
 			{
 				OutputDebugStringA("Hit 0\n");
@@ -1651,41 +1827,155 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
-			ImGui::ShowDemoWindow();
+			ImGui::Begin("Settings");
+			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
 
-			ImGui::Begin("Lighting");
-			ImGui::ColorEdit4("Material Color", &materialData->color.x);
-			bool enableLighting = materialData->enavleLighting != 0;
-			if (ImGui::Checkbox("Enable Lighting", &enableLighting))
+			if (ImGui::CollapsingHeader("Lighting"))
 			{
-				materialData->enavleLighting = enableLighting ? 1 : 0;
+				ImGui::ColorEdit4("Material Color", &materialData->color.x);
+				bool enableLighting = materialData->enavleLighting != 0;
+				if (ImGui::Checkbox("Enable Lighting", &enableLighting))
+				{
+					materialData->enavleLighting = enableLighting ? 1 : 0;
+				}
+				ImGui::Separator();
+				ImGui::ColorEdit4("Light Color", &directionalLightData->color.x);
+				ImGui::SliderFloat("Light Intensity", &directionalLightData->intesity, 0.0f, 10.0f);
+				static Vector3 lightDirection = directionalLightData->dirction;
+				if (ImGui::SliderFloat3("Light Direction", &lightDirection.x, -1.0f, 1.0f))
+				{
+					directionalLightData->dirction = Normalize(lightDirection);
+				}
 			}
-			ImGui::Separator();
-			ImGui::ColorEdit4("Light Color", &directionalLightData->color.x);
-			ImGui::SliderFloat("Light Intensity", &directionalLightData->intesity, 0.0f, 10.0f);
-			static Vector3 lightDirection = directionalLightData->dirction;
-			if (ImGui::SliderFloat3("Light Direction", &lightDirection.x, -1.0f, 1.0f))
-			{
-				directionalLightData->dirction = Normalize(lightDirection);
-			}
-			ImGui::Begin("Texture");
-			ImGui::Checkbox("useMonsterBall", &useMonsterBall);
 
-			ImGui::Begin("UV");
-			ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
-			ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
-			ImGui::SliderAngle("UVRRotate", &uvTransformSprite.rotate.z);
-			ImGui::End();
-			//ImGui::Begin("TRIANGLE_CHANGE_COLOR");
+			if (ImGui::CollapsingHeader("Texture"))
+			{
+				ImGui::Checkbox("useMonsterBall", &useMonsterBall);
+				ImGui::Separator();
+
+
+				if (ImGui::RadioButton("Plane", planeMode))
+				{
+					planeMode = true; sphereMode = false; bunnyMode = false; bunnySphereMode = false;
+				}
+				ImGui::SameLine();
+				if (ImGui::RadioButton("Sphere", sphereMode))
+				{
+					planeMode = false; sphereMode = true; bunnyMode = false;  bunnySphereMode = false;
+				}
+				ImGui::SameLine();
+				if (ImGui::RadioButton("Bunny", bunnyMode))
+				{
+					planeMode = false; sphereMode = false; bunnyMode = true;  bunnySphereMode = false;
+				}
+				ImGui::SameLine();
+				if (ImGui::RadioButton("Bunny  & Sphere", bunnySphereMode))
+				{
+					planeMode = false; sphereMode = false; bunnyMode = false; bunnySphereMode = true;
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Camera"))
+			{
+				ImGui::Checkbox("Use Debug Camera", &useDebugCamera);
+			}
+
+			if (ImGui::CollapsingHeader("Object"))
+			{
+				ImGui::Checkbox("Enable Object Rotation", &enableObjectRotation);
+
+				if (bunnySphereMode)
+				{
+					ImGui::Text("--- Bunny Transform ---");
+					ImGui::DragFloat3("Bunny Pos", &bunnyTransform.translate.x, 0.01f);
+					ImGui::DragFloat3("Bunny Rot", &bunnyTransform.rotate.x, 0.01f);
+					ImGui::DragFloat3("Bunny Scale", &bunnyTransform.scale.x, 0.01f);
+
+					ImGui::Text("--- Sphere Transform ---");
+					ImGui::DragFloat3("Sphere Pos", &sphereTransform.translate.x, 0.01f);
+					ImGui::DragFloat3("Sphere Rot", &sphereTransform.rotate.x, 0.01f);
+					ImGui::DragFloat3("Sphere Scale", &sphereTransform.scale.x, 0.01f);
+				}
+				else
+				{
+					ImGui::DragFloat3("Translate", &transform.translate.x, 0.01f);
+					ImGui::DragFloat3("Rotate", &transform.rotate.x, 0.01f);
+					ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f);
+				}
+			}
+
+			if (ImGui::CollapsingHeader("Sprite"))
+			{
+				ImGui::DragFloat3("Translate", &transformSprite.translate.x, 1.0f);
+				ImGui::DragFloat3("Rotate", &transformSprite.rotate.x, 0.01f);
+				ImGui::DragFloat3("Scale", &transformSprite.scale.x, 0.01f);
+				ImGui::DragFloat2("UVTranslate", &uvTransformSprite.translate.x, 0.01f, -10.0f, 10.0f);
+				ImGui::DragFloat2("UVScale", &uvTransformSprite.scale.x, 0.01f, -10.0f, 10.0f);
+				ImGui::SliderAngle("UVRRotate", &uvTransformSprite.rotate.z);
+
+				if (ImGui::Button("ResetSprite"))
+				{
+					transformSprite = transFormSpriteReset;
+					uvTransformSprite = uvTransfromSpriteReset;
+				}
+
+			}
 
 			ImGui::End();
 
 			ImGui::ShowDemoWindow();
 			//ImGui::End();
 
+			const float objectMouseRotSpeed = 0.005f;
+		
 			if (enableObjectRotation)
 			{
-				transform.rotate.y += 0.02f;
+				if (bunnySphereMode)
+				{
+					bunnyTransform.rotate.y -= 0.02f;
+					sphereTransform.rotate.y -= 0.02f;
+				}
+				else if (bunnyMode)
+				{
+					bunnyTransform.rotate.y -= 0.02f;
+				}
+				else if (sphereMode)
+				{
+					sphereTransform.rotate.y -= 0.02f;
+				}
+				else
+				{
+					transform.rotate.y -= 0.02f;
+				}
+			}
+
+			if (mouseState.rgbButtons[1] & 0x80)
+			{
+				float dx = -mouseState.lX * objectMouseRotSpeed;
+				float dy = -mouseState.lY * objectMouseRotSpeed;
+
+				if (bunnySphereMode)
+				{
+					bunnyTransform.rotate.y += dx;
+					bunnyTransform.rotate.x += dy;
+					sphereTransform.rotate.y += dx;
+					sphereTransform.rotate.x += dy;
+				}
+				else if (bunnyMode)
+				{
+					bunnyTransform.rotate.y += dx;
+					bunnyTransform.rotate.x += dy;
+				}
+				else if (sphereMode)
+				{
+					sphereTransform.rotate.y += dx;
+					sphereTransform.rotate.x += dy;
+				}
+				else // planeMode
+				{
+					transform.rotate.y += dx;
+					transform.rotate.x += dy;
+				}
 			}
 
 			Matrix4x4 worldMatrix = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -1711,11 +2001,26 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
 
-			wvpData->WVP = worldViewProjectionMatrix;   
+			wvpData->WVP = worldViewProjectionMatrix;
 			wvpData->world = worldMatrix;
 
+			Matrix4x4 worldMatrixSprite = makeAffineMatrix(transformSprite.scale, transformSprite.rotate, transformSprite.translate);
+
+			Matrix4x4 viewMatrixSprite = MakeIdentityMatrix4x4();
+
+			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
+				0.0f, 0.0f,
+				static_cast<float>(kClientWidth),
+				static_cast<float>(kClientHeight),
+				0.0f, 100.0f
+			);
+
+			Matrix4x4 worldViewProjectionMatrixSprite = Multiply(worldMatrixSprite, Multiply(viewMatrixSprite, projectionMatrixSprite));
+
+			*transformationMatrixDataSprite = worldViewProjectionMatrixSprite;
+
 			Matrix4x4 uvTransformMatrix = MakeScaleMatrix(uvTransformSprite.scale);
-			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvRotateZ));
+			uvTransformMatrix = Multiply(uvTransformMatrix, rotateZ(uvTransformSprite.rotate.z));
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
@@ -1755,19 +2060,79 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetGraphicsRootSignature(rootSignature);
 			commandList->SetPipelineState(graphicsPipelineState);
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			//
+			//// 1. バッファのセット
+			//if (bunnyMode)
+			//{
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
+			//	commandList->IASetIndexBuffer(&indexBufferViewPlane2);
+			//}
+			//else if (sphereMode)
+			//{
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+			//	commandList->IASetIndexBuffer(&indexBufferViewSphere);
+			//}
+			//else if (planeMode)
+			//{
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+			//	commandList->IASetIndexBuffer(&indexBufferViewPlane);
+			//}
 
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-			commandList->IASetIndexBuffer(&indexBufferView);   // ★追加
+			// ルートパラメーターや定数バッファの設定
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
 			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
-			commandList->DrawIndexedInstanced(UINT(modelData.indices.size()), 1, 0, 0, 0);
+
+			uint32_t indexCount = 0;
+			if (bunnyMode || bunnySphereMode)
+			{
+				Matrix4x4 bunnyWorld = makeAffineMatrix(bunnyTransform.scale, bunnyTransform.rotate, bunnyTransform.translate);
+				wvpDataBunny->WVP = Multiply(bunnyWorld, Multiply(viewMatrix, projctionMatrix));
+				wvpDataBunny->world = bunnyWorld;
+
+				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceBunny->GetGPUVirtualAddress()); // ← 専用バッファ
+
+				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
+				commandList->IASetIndexBuffer(&indexBufferViewPlane2);
+				commandList->DrawIndexedInstanced(UINT(modelData2.indices.size()), 1, 0, 0, 0);
+			}
+
+			if (sphereMode || bunnySphereMode)
+			{
+				Matrix4x4 sphereWorld = makeAffineMatrix(sphereTransform.scale, sphereTransform.rotate, sphereTransform.translate);
+				wvpDataSphere->WVP = Multiply(sphereWorld, Multiply(viewMatrix, projctionMatrix));
+				wvpDataSphere->world = sphereWorld;
+
+				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress()); // ← 専用バッファ
+
+				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+				commandList->IASetIndexBuffer(&indexBufferViewSphere);
+				commandList->DrawIndexedInstanced(UINT(sphereData.indices.size()), 1, 0, 0, 0);
+			}
+
+			if (planeMode)
+			{
+				Matrix4x4 planeWorld = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+				wvpData->WVP = Multiply(planeWorld, Multiply(viewMatrix, projctionMatrix)); // 元々のwvpResourceはplane専用として使う
+				wvpData->world = planeWorld;
+
+				commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+
+				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+				commandList->IASetIndexBuffer(&indexBufferViewPlane);
+				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
+			}
+			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 
+			// 2. Sprite用定数バッファ・記述子テーブルのセット
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU); // 表示したいテクスチャのGPUハンドル
+
+			// 3. Spriteの描画実行 (インデックス数: 6)
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -1834,6 +2199,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	if (fence)
 	{
 		fence->Release();
+	}
+
+	if (mouse)
+	{
+		mouse->Release();
+	}
+
+	if (keyboard)
+	{
+		keyboard->Release();
 	}
 
 	if (commandList)

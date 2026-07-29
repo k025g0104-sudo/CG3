@@ -195,10 +195,12 @@ void DebugCamera::Initialize()
 		0.1f, 100.0f);
 }
 
-void DebugCamera::Update(const BYTE* key)
+void DebugCamera::Update(const BYTE* key, const DIMOUSESTATE2& mouse)
 {
 	const float moveSpeed = 0.5f;
 	const float rotSpeed = 0.02f;
+	const float mouseRotSpeed = 0.0005f;   // マウス回転の感度
+	const float wheelZoomSpeed = 0.05f;   // ホイールズームの感度
 
 	// ---- 移動(累積回転行列を使って移動ベクトルを回転させる) ----
 	if (key[DIK_W])
@@ -232,6 +234,14 @@ void DebugCamera::Update(const BYTE* key)
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
 
+	// ---- ホイールでズーム(前後移動) ----
+	if (mouse.lZ != 0)
+	{
+		Vector3 move = TransformNormal({ 0, 0, mouse.lZ * wheelZoomSpeed }, matRot_);
+		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
+	}
+
+
 	float rotateXAngle = 0.0f;
 	float rotateYAngle = 0.0f;
 
@@ -239,13 +249,15 @@ void DebugCamera::Update(const BYTE* key)
 	if (key[DIK_DOWN])  rotateXAngle += rotSpeed;
 	if (key[DIK_LEFT])  rotateYAngle -= rotSpeed;
 	if (key[DIK_RIGHT]) rotateYAngle += rotSpeed;
-
+	
 	Matrix4x4 matRotDelta = MakeIdentityMatrix4x4();
 	matRotDelta = Multiply(matRotDelta, RotateX(rotateXAngle));
 	matRotDelta = Multiply(matRotDelta, RotateY(rotateYAngle));
 
+	// 累積の回転行列を合成
 	matRot_ = Multiply(matRotDelta, matRot_);
 
+	// ---- ビュー行列の更新 ----
 	Matrix4x4 translationMatrix = MakeTranslationMatrix(translation_);
 	Matrix4x4 worldMatrix = Multiply(matRot_, translationMatrix);
 
