@@ -1764,12 +1764,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
 	hr = xAudio2->CreateMasteringVoice(&masterVoice);
 
-	SoundPlayerWave(xAudio2.Get(), soundData1);
-
-	xAudio2.Reset();
-
-	SoundUnlod(&soundData1);
-
 	IDirectInput8* directInput = nullptr;
 	hr = DirectInput8Create(wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
 	assert(SUCCEEDED(hr));
