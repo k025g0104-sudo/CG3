@@ -1760,9 +1760,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
-	IXAudio2MasteringVoice* masterVoice;
+	IXAudio2MasteringVoice* masterVoice = nullptr;
 	hr = XAudio2Create(&xAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR);
+	assert(SUCCEEDED(hr));
+
 	hr = xAudio2->CreateMasteringVoice(&masterVoice);
+	assert(SUCCEEDED(hr));
 
 	IDirectInput8* directInput = nullptr;
 	hr = DirectInput8Create(wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
@@ -1826,6 +1829,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			ImGui::Begin("Settings");
 			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
+			
+			if (ImGui::CollapsingHeader("Audio"))
+			{
+				if (ImGui::Button("Play Sound"))
+				{
+					SoundPlayerWave(xAudio2.Get(), soundData1);
+				}
+			}
+
 			if (ImGui::CollapsingHeader("Lighting"))
 			{
 				ImGui::ColorEdit4("Material Color", &materialData->color.x);
@@ -2005,7 +2017,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			{
 				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
-				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+				projctionMatrix = MakePerspectiveFovMatrix(1.047f,  static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			}
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
@@ -2184,6 +2196,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		}
 	}
 
+	SoundUnlod(&soundData1);
+	if (masterVoice)
+	{
+		masterVoice->DestroyVoice();
+	}
+	xAudio2.Reset();
+
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
@@ -2254,6 +2273,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	{
 		useAdapter->Release();
 	}
+
+
 
 #ifdef _DEBUG
 	if (debugController)
