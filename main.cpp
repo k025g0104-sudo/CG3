@@ -1702,6 +1702,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		{ 2.0f, 0.0f, 0.0f }
 	};
 
+	const Transform bunnyTransformReset = bunnyTransform;
+	const Transform sphereTransformReset = sphereTransform;
+
 	CameraTransform cameraTransform
 	{
 		{ 1.0f, 1.0f, 1.0f },
@@ -1895,12 +1898,22 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					ImGui::DragFloat3("Sphere Pos", &sphereTransform.translate.x, 0.01f);
 					ImGui::DragFloat3("Sphere Rot", &sphereTransform.rotate.x, 0.01f);
 					ImGui::DragFloat3("Sphere Scale", &sphereTransform.scale.x, 0.01f);
+
+					if (ImGui::Button("Reset"))
+					{
+						bunnyTransform = bunnyTransformReset;
+						sphereTransform = sphereTransformReset;
+					}
 				}
 				else
 				{
 					ImGui::DragFloat3("Translate", &transform.translate.x, 0.01f);
 					ImGui::DragFloat3("Rotate", &transform.rotate.x, 0.01f);
 					ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f);
+					if (ImGui::Button("Reset"))
+					{
+						transform = transFormReset;
+					}
 				}
 			}
 
