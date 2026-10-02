@@ -241,6 +241,7 @@ void DebugCamera::Update(const BYTE* key, const DIMOUSESTATE2& mouse)
 		Vector3 move = TransformNormal({ 0, 0, mouse.lZ * wheelZoomSpeed }, matRot_);
 		translation_.x += move.x; translation_.y += move.y; translation_.z += move.z;
 	}
+
 	Matrix4x4 translationMatrix = MakeTranslationMatrix(translation_);
 	Matrix4x4 worldMatrix = Multiply(matRot_, translationMatrix);
 

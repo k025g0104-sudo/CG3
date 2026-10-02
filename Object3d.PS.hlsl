@@ -47,7 +47,24 @@ PixelShaderOutput main(VertexShaderOutput input)
         ligthFactor = gDirectionalLight.color.rgb * cos * gDirectionalLight.intesity;
     }
 
+    if(textureColor.a <= 0.5f)
+    {
+        discard;
+    }
+        
+    if (textureColor.a == 0.0f)
+    {
+        discard;
+    }
+    
+    if (output.color.a == 0.0f)
+    {
+        discard;
+    }
+    
     output.color = gMaterial.color * textureColor * float32_t4(ligthFactor, 1.0f);
-
+    output.color.rgb = gMaterial.color.rgb * textureColor.rgb * ligthFactor;
+    output.color.a = gMaterial.color.a * textureColor.a;
+    
     return output;
 }
