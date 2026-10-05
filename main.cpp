@@ -533,8 +533,14 @@ IDxcBlob* CompileShader(
 //ウィンドウプロシージャ
 LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+#ifdef DEBUG
 
+	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
+	{
+		return true;
+	}
 
+#endif // DEBUG
 
 	//メッセージに応じてゲーム固有の処理を行う
 	switch (msg)
@@ -1677,6 +1683,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	scissorRect.bottom = kClientHeight;
 
 
+#ifdef DEBUG
+
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -1695,6 +1703,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	ImGuiIO& io = ImGui::GetIO();
 	io.Fonts->Build();
 
+#endif // DEBUG
 
 	Transform transform
 	{
@@ -1842,6 +1851,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				OutputDebugStringA("Hit 0\n");
 			}
 
+#ifdef DEBUG
+
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
@@ -1964,6 +1975,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::End();
 
 			ImGui::ShowDemoWindow();
+
+#endif // DEBUG
+
+
 			//ImGui::End();
 
 			const float objectMouseRotSpeed = 0.005f;
@@ -2064,8 +2079,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
+#ifdef DEBUG
+
 			//Imgui
 			ImGui::Render();
+
+#endif // DEBUG
+
+
 
 			//TransitionBarrerの設定
 			D3D12_RESOURCE_BARRIER barrier{};
@@ -2175,7 +2196,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			// 3. Spriteの描画実行 (インデックス数: 6)
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
+#ifdef DEBUG
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
+#endif // DEBUG
+
 			//今回はRenderTargetからpresentにする
 			barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
@@ -2223,9 +2247,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 	xAudio2.Reset();
 
+#ifdef DEBUG
+
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
+
+
+#endif // DEBUG
+
 
 	if (includeHandler)
 	{
