@@ -891,14 +891,6 @@ ModelData MakeSphere(uint32_t kSubdivision)
 			modelData.vertics[start + 5].normal.x = modelData.vertics[start + 5].position.x;
 			modelData.vertics[start + 5].normal.y = modelData.vertics[start + 5].position.y;
 			modelData.vertics[start + 5].normal.z = modelData.vertics[start + 5].position.z;
-
-			modelData.vertics.push_back({ .position = {1.0f,1.0f,1.0f},.texcoord = {0.0f,0.0f},.normal = {0.0f,0.0f,1.0f} });
-			modelData.vertics.push_back({ .position = {-1.0f,1.0f,0.0f,1.0f},.texcoord = {1.0f,0.0f},.normal = {0.0f,0.0f,1.0f} });
-			modelData.vertics.push_back({ .position = {1.0f,-1.0f,0.0f,1.0f},.texcoord = {0.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
-			modelData.vertics.push_back({ .position = {1.0f,-1.0f,0.0f,1.0f},.texcoord = {0.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
-			modelData.vertics.push_back({ .position = {-1.0f,1.0f,0.0f,1.0f},.texcoord = {1.0f,0.0f},.normal = {0.0f,0.0f,1.0f} });
-			modelData.vertics.push_back({ .position = {-1.0f,-1.0f,0.0f,1.0f},.texcoord = {1.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
-
 		}
 	}
 
