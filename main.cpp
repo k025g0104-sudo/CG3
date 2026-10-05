@@ -1431,8 +1431,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
 
-	
-	
+
+
 
 	Log("Hello,DirectX!\n");
 
@@ -1705,7 +1705,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	{
 	 { 1.0f, 1.0f, 1.0f },
 	 { 0.0f, 0.0f, 0.0f },
-	 { 0.0f, 0.0f, -5.0f }
+	 { 0.0f, 0.0f, -0.5f }
 	};
 
 	const Transform transFormReset = transform;
@@ -1731,7 +1731,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	{
 		{ 1.0f, 1.0f, 1.0f },
 		{ 0.0f, 0.0f, 0.0f },
-		{ 0.0f, 0.0f, -0.5f }
+		{ 0.0f, 0.0f, -5.0f }
 	};
 
 	Transform transformSprite
@@ -1853,7 +1853,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			ImGui::Begin("Settings");
 			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
-			
+
 			if (ImGui::CollapsingHeader("Audio"))
 			{
 				if (ImGui::Button("Play Sound"))
@@ -1972,7 +1972,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ImGui::End();
 
 			const float objectMouseRotSpeed = 0.005f;
-		
+
 			if (enableObjectRotation)
 			{
 				if (bunnySphereMode)
@@ -2041,7 +2041,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			{
 				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
-				projctionMatrix = MakePerspectiveFovMatrix(1.047f,  static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			}
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
@@ -2187,7 +2187,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//TransitionBarrerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
-			
+
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
 			hr = commandList->Close();
 			assert(SUCCEEDED(hr));
@@ -2222,16 +2222,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 
 	SoundUnlod(&soundData1);
-    if (masterVoice)
-    {
-        masterVoice->DestroyVoice();
-    }
-    xAudio2.Reset();
+	if (masterVoice)
+	{
+		masterVoice->DestroyVoice();
+	}
+	xAudio2.Reset();
 
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
-#endif
+
 	if (includeHandler)
 	{
 		includeHandler->Release();
@@ -2327,4 +2327,3 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	return 0;
 }
-

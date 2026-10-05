@@ -3,7 +3,7 @@
 struct Material
 {
     float32_t4 color;
-    int32_t lightingType; 
+    int32_t lightingType;
     float32_t3 padding;
     float32_t4x4 uvTransform;
 };
