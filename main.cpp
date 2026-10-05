@@ -534,10 +534,6 @@ IDxcBlob* CompileShader(
 LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
-	{
-		return true;
-	}
 
 
 	//メッセージに応じてゲーム固有の処理を行う
@@ -1698,7 +1694,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	ImGuiIO& io = ImGui::GetIO();
 	io.Fonts->Build();
-
 
 
 	Transform transform
