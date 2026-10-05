@@ -2187,12 +2187,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//TransitionBarrerを張る
 			commandList->ResourceBarrier(1, &barrier);
 
-			for (int i = 0; i < 10; i++)
-			{
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
-				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
-			}
-
+			
 			//コマンドリストの内容を確定させる、全てのコマンドを積んでからCloseする必要がある
 			hr = commandList->Close();
 			assert(SUCCEEDED(hr));
