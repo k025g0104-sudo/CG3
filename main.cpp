@@ -893,6 +893,15 @@ ModelData MakeSphere(uint32_t kSubdivision)
 			modelData.vertics[start + 5].normal.x = modelData.vertics[start + 5].position.x;
 			modelData.vertics[start + 5].normal.y = modelData.vertics[start + 5].position.y;
 			modelData.vertics[start + 5].normal.z = modelData.vertics[start + 5].position.z;
+
+
+			modelData.vertics.push_back({ .position = {1.0f,1.0f,0.0f,0.0f},.texcoord = {0.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.vertics.push_back({ .position = {-1.0f,1.0f,0.0f,1.0f},.texcoord = {1.0f,0.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.vertics.push_back({ .position = {1.0f,-1.0f,0.0f,1.0f},.texcoord = {0.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.vertics.push_back({ .position = {1.0f,-1.0f,0.0f,1.0f},.texcoord = {0.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.vertics.push_back({ .position = {-1.0f,1.0f,0.0f,1.0f},.texcoord = {1.0f,0.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.vertics.push_back({ .position = {-1.0f,-1.0f,0.0f,1.0f},.texcoord = {1.0f,1.0f},.normal = {0.0f,0.0f,1.0f} });
+			modelData.material.textureFilepath = "./resources/uvChecker.png";
 		}
 	}
 
@@ -1490,6 +1499,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 	descriptionRootSignature.pParameters = rootParameters;
 
+
+
+	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
+	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
+	descriptorRangeForInstancing[0].NumDescriptors = 1;
+	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> directionalLightResource = CreateBufferResource(device.Get(), sizeof(DirectionalLight));
 	DirectionalLight* directionalLightData = nullptr;
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
@@ -1530,6 +1552,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wvpResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataSphere));
 	wvpDataSphere->WVP = MakeIdentity4x4();
 	wvpDataSphere->world = MakeIdentity4x4();
+
+	const uint32_t kNumParticles = 10;
+
+	
 
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -2184,6 +2210,26 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				commandList->IASetIndexBuffer(&indexBufferViewPlane);
 				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
 			}
+
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+			commandList->IASetIndexBuffer(&indexBufferViewPlane);
+
+			for (uint32_t i = 0; i < kNumParticles; ++i)
+			{
+				Matrix4x4 world = makeAffineMatrix(
+					particleTransform[i].scale,
+					particleTransform[i].rotate,
+					particleTransform[i].translate);
+
+				particleWvpData[i]->WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
+				particleWvpData[i]->world = world;
+
+				int instanceCount = 10;
+
+				commandList->SetGraphicsRootConstantBufferView(1, particleWvpResource[i]->GetGPUVirtualAddress());
+				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()),instanceCount  0, 0);
+			}
+
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
