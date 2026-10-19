@@ -2214,21 +2214,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
-			for (uint32_t i = 0; i < kNumParticles; ++i)
-			{
-				Matrix4x4 world = makeAffineMatrix(
-					particleTransform[i].scale,
-					particleTransform[i].rotate,
-					particleTransform[i].translate);
 
-				particleWvpData[i]->WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
-				particleWvpData[i]->world = world;
-
-				int instanceCount = 10;
-
-				commandList->SetGraphicsRootConstantBufferView(1, particleWvpResource[i]->GetGPUVirtualAddress());
-				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()),instanceCount  0, 0);
-			}
 
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
