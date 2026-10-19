@@ -14,6 +14,7 @@
 #include <wrl.h>
 #include <xaudio2.h>
 #include "DebugCamera.h"
+#include "Input.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -1799,15 +1800,23 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = DirectInput8Create(wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
 	assert(SUCCEEDED(hr));
 
-	IDirectInputDevice8* keyboard = nullptr;
-	hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
-	assert(SUCCEEDED(hr));
+	Input* input = nullptr;
 
-	hr = keyboard->SetDataFormat(&c_dfDIKeyboard);
-	assert(SUCCEEDED(hr));
+	input = new Input();
+	input->Initialize(wc.hInstance,hwnd);
 
-	hr = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
-	assert(SUCCEEDED(hr));
+	delete input;
+
+	//IDirectInputDevice8* keyboard = nullptr;
+	//hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
+	//assert(SUCCEEDED(hr));
+
+
+	//hr = keyboard->SetDataFormat(&c_dfDIKeyboard);
+	//assert(SUCCEEDED(hr));
+
+	//hr = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	//assert(SUCCEEDED(hr));
 
 	IDirectInputDevice8* mouse = nullptr;
 	hr = directInput->CreateDevice(GUID_SysMouse, &mouse, NULL);
