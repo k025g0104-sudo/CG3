@@ -533,7 +533,7 @@ IDxcBlob* CompileShader(
 //ウィンドウプロシージャ
 LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-#ifdef DEBUG
+#ifdef _DEBUG
 
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
 	{
@@ -704,7 +704,7 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 
 
 bool useMonsterBall = false;
-bool useDebugCamera = true;
+bool useDebugCamera = false;
 bool enableObjectRotation = false;
 bool planeMode = true;
 bool sphereMode = false;
@@ -1305,9 +1305,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
 	//vertexData[5].texcoord = { 1.0f,1.0f };
 
+	//const uint32_t kSubdivision = 16;
 
+	ModelData modelData1 = LoadObjFile("resource", "plane.obj");
+	//ModelData sphereData = MakeSphere(kSubdivision);
 
-	ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
+	//ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
 
 	//ModelData modelData3 = LoadObjFile("resource", "fence.obj");
 
@@ -1330,7 +1333,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane));
 	std::memcpy(indexDataPlane, modelData1.indices.data(), sizeof(uint32_t) * modelData1.indices.size());
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData2.vertics.size());
+	/*Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData2.vertics.size());
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane2{};
 	vertexBufferViewPlane2.BufferLocation = vertexResourcePlane2->GetGPUVirtualAddress();
 	vertexBufferViewPlane2.SizeInBytes = UINT(sizeof(VertexData) * modelData2.vertics.size());
@@ -1346,28 +1349,28 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexBufferViewPlane2.Format = DXGI_FORMAT_R32_UINT;
 	uint32_t* indexDataPlane2 = nullptr;
 	indexResourcePlane2->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane2));
-	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());
+	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());*/
 
 
 	// ---- Sphere用バッファ ----
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
-	vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
-	vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereData.vertics.size());
-	vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
-	VertexData* vertexDataSphere = nullptr;
-	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
-	std::memcpy(vertexDataSphere, sphereData.vertics.data(), sizeof(VertexData) * sphereData.vertics.size());
+	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
+	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
+	//vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
+	//vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereData.vertics.size());
+	//vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
+	//VertexData* vertexDataSphere = nullptr;
+	//vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
+	//std::memcpy(vertexDataSphere, sphereData.vertics.data(), sizeof(VertexData) * sphereData.vertics.size());
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSphere = CreateBufferResource(device.Get(), sizeof(uint32_t) * sphereData.indices.size());
-	D3D12_INDEX_BUFFER_VIEW indexBufferViewSphere{};
-	indexBufferViewSphere.BufferLocation = indexResourceSphere->GetGPUVirtualAddress();
-	indexBufferViewSphere.SizeInBytes = UINT(sizeof(uint32_t) * sphereData.indices.size());
-	indexBufferViewSphere.Format = DXGI_FORMAT_R32_UINT;
-	uint32_t* indexDataSphere = nullptr;
-	indexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSphere));
-	std::memcpy(indexDataSphere, sphereData.indices.data(), sizeof(uint32_t) * sphereData.indices.size());
-	//Sprite用
+	//Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSphere = CreateBufferResource(device.Get(), sizeof(uint32_t) * sphereData.indices.size());
+	//D3D12_INDEX_BUFFER_VIEW indexBufferViewSphere{};
+	//indexBufferViewSphere.BufferLocation = indexResourceSphere->GetGPUVirtualAddress();
+	//indexBufferViewSphere.SizeInBytes = UINT(sizeof(uint32_t) * sphereData.indices.size());
+	//indexBufferViewSphere.Format = DXGI_FORMAT_R32_UINT;
+	//uint32_t* indexDataSphere = nullptr;
+	//indexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSphere));
+	//std::memcpy(indexDataSphere, sphereData.indices.data(), sizeof(uint32_t) * sphereData.indices.size());
+	////Sprite用
 	Microsoft::WRL::ComPtr<ID3D12Resource>vertexResourceSprite = CreateBufferResource(device.Get(), sizeof(VertexData) * 4);
 
 	//頂点バッファビューを作成する
@@ -1680,7 +1683,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	scissorRect.bottom = kClientHeight;
 
 
-#ifdef DEBUG
+#ifdef _DEBUG
 
 
 	IMGUI_CHECKVERSION();
@@ -1775,7 +1778,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	if (bunnyMode)
 	{
-		DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);
+		/*DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);*/
+		DirectX::ScratchImage mipImages3 = LoadTexture(modelData1.material.textureFilepath);
 	}
 	else
 	{
@@ -1801,7 +1805,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	input = new Input();
 	input->Initialize(wc.hInstance,hwnd);
 
-	delete input;
+	
 
 	//IDirectInputDevice8* keyboard = nullptr;
 	//hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
@@ -1841,22 +1845,20 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//ゲームの処理
 			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
-			keyboard->Acquire();
-			BYTE key[256] = {};
-			keyboard->GetDeviceState(sizeof(key), key);
+			input->Update();
 
 			mouse->Acquire();
 			DIMOUSESTATE2 mouseState = {};
 			mouse->GetDeviceState(sizeof(mouseState), &mouseState);
 
-			debugCamera.Update(key, mouseState);
+			//debugCamera.Update(key, mouseState);
 
-			if (key[DIK_0])
+			/*if (key[DIK_0])
 			{
 				OutputDebugStringA("Hit 0\n");
-			}
+			}*/
 
-#ifdef DEBUG
+#ifdef _DEBUG
 
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
@@ -2084,7 +2086,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			uvTransformMatrix = Multiply(uvTransformMatrix, MakeTranslationMatrix(uvTransformSprite.translate));
 			materialDataSprite->uvTransform = uvTransformMatrix;
 
-#ifdef DEBUG
+#ifdef _DEBUG
 
 			//Imgui
 			ImGui::Render();
@@ -2151,31 +2153,31 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			uint32_t indexCount = 0;
-			if (bunnyMode || bunnySphereMode)
-			{
-				Matrix4x4 bunnyWorld = makeAffineMatrix(bunnyTransform.scale, bunnyTransform.rotate, bunnyTransform.translate);
-				wvpDataBunny->WVP = Multiply(bunnyWorld, Multiply(viewMatrix, projctionMatrix));
-				wvpDataBunny->world = bunnyWorld;
+			//if (bunnyMode || bunnySphereMode)
+			//{
+			//	Matrix4x4 bunnyWorld = makeAffineMatrix(bunnyTransform.scale, bunnyTransform.rotate, bunnyTransform.translate);
+			//	wvpDataBunny->WVP = Multiply(bunnyWorld, Multiply(viewMatrix, projctionMatrix));
+			//	wvpDataBunny->world = bunnyWorld;
 
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceBunny->GetGPUVirtualAddress()); // ← 専用バッファ
+			//	commandList->SetGraphicsRootConstantBufferView(1, wvpResourceBunny->GetGPUVirtualAddress()); // ← 専用バッファ
 
-				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
-				commandList->IASetIndexBuffer(&indexBufferViewPlane2);
-				commandList->DrawIndexedInstanced(UINT(modelData2.indices.size()), 1, 0, 0, 0);
-			}
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
+			//	commandList->IASetIndexBuffer(&indexBufferViewPlane2);
+			//	commandList->DrawIndexedInstanced(UINT(modelData2.indices.size()), 1, 0, 0, 0);
+			//}
 
-			if (sphereMode || bunnySphereMode)
-			{
-				Matrix4x4 sphereWorld = makeAffineMatrix(sphereTransform.scale, sphereTransform.rotate, sphereTransform.translate);
-				wvpDataSphere->WVP = Multiply(sphereWorld, Multiply(viewMatrix, projctionMatrix));
-				wvpDataSphere->world = sphereWorld;
+			//if (sphereMode || bunnySphereMode)
+			//{
+			//	Matrix4x4 sphereWorld = makeAffineMatrix(sphereTransform.scale, sphereTransform.rotate, sphereTransform.translate);
+			//	wvpDataSphere->WVP = Multiply(sphereWorld, Multiply(viewMatrix, projctionMatrix));
+			//	wvpDataSphere->world = sphereWorld;
 
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress()); // ← 専用バッファ
+			//	commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress()); // ← 専用バッファ
 
-				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
-				commandList->IASetIndexBuffer(&indexBufferViewSphere);
-				commandList->DrawIndexedInstanced(UINT(sphereData.indices.size()), 1, 0, 0, 0);
-			}
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+			//	commandList->IASetIndexBuffer(&indexBufferViewSphere);
+			//	commandList->DrawIndexedInstanced(UINT(sphereData.indices.size()), 1, 0, 0, 0);
+			//}
 
 			if (planeMode)
 			{
@@ -2201,7 +2203,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			// 3. Spriteの描画実行 (インデックス数: 6)
 			commandList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
-#ifdef DEBUG
+#ifdef _DEBUG
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
 #endif // DEBUG
 
@@ -2252,7 +2254,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	}
 	xAudio2.Reset();
 
-#ifdef DEBUG
+#ifdef _DEBUG
 
 	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplWin32_Shutdown();
@@ -2289,10 +2291,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		mouse->Release();
 	}
 
-	if (keyboard)
+	/*if (keyboard)
 	{
 		keyboard->Release();
-	}
+	}*/
 
 	if (commandList)
 	{
@@ -2329,6 +2331,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		useAdapter->Release();
 	}
 
+	delete input;
 
 
 #ifdef _DEBUG
