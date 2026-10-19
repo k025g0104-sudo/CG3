@@ -27,7 +27,6 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg
 #pragma comment(lib,"dxcompiler.lib")
 #pragma comment(lib,"xaudio2.lib")
 
-#define DIRECTINT_VERSION 0x0800
 #include <dinput.h>
 #pragma comment(lib,"dinput8.lib")
 #pragma comment(lib,"dxguid.lib")
@@ -1306,10 +1305,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//vertexData[5].position = { 0.5f,-0.5f,-0.5f,1.0f };
 	//vertexData[5].texcoord = { 1.0f,1.0f };
 
-	const uint32_t kSubdivision = 16;
 
-	ModelData modelData1 = LoadObjFile("resource", "fence.obj");
-	ModelData sphereData = MakeSphere(kSubdivision);
 
 	ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
 

@@ -1,6 +1,5 @@
 #include "Input.h"
 
-#include <Windows.h>
 #include <cstdint>
 #include <string>
 #include <cassert>
@@ -13,7 +12,6 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm> 
-#include <wrl.h>
 #include <xaudio2.h>
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
@@ -21,8 +19,6 @@
 #pragma comment(lib,"dxcompiler.lib")
 #pragma comment(lib,"xaudio2.lib")
 
-#define DIRECTINPUT_VERSION 0x0800  
-#include <dinput.h>
 #pragma comment(lib,"dinput8.lib")
 #pragma comment(lib,"dxguid.lib")
 
