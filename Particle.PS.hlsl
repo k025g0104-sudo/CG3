@@ -28,12 +28,12 @@ struct PixelShaderOutput
 PixelShaderOutput main(VertexShaderOutput input)
 {
     PixelShaderOutput output;
-    float4 transformedUV = mul(float32_t4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
+    float4 transformedUV = mul(float4(input.texcoord, 0.0f, 1.0f), gMaterial.uvTransform);
     float4 textureColor = gTexture.Sample(gSampler, transformedUV.xy);
     output.color = gMaterial.color * textureColor; // * float32_t4(ligthFactor, 1.0f);
    // float32_t3 ligthFactor = float32_t3(1.0f, 1.0f, 1.0f);
 
-    if (output.color.a)
+    if (output.color.a == 0)
     {
         discard;
     }

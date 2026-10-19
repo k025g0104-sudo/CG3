@@ -111,6 +111,12 @@ struct VertexData
 	Vector3 normal;
 };
 
+struct Particle
+{
+	Transform transform;
+	Vector3 velocity;
+};
+
 bool operator==(const Vector2& a, const Vector2& b)
 {
 	return a.x == b.x && a.y == b.y;
@@ -1316,10 +1322,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	const uint32_t kSubdivision = 16;
 
-	ModelData modelData1 = LoadObjFile("resource", "fence.obj");
-	ModelData sphereData = MakeSphere(kSubdivision);
+	ModelData modelData1 = LoadObjFile("resource", "plane.obj");
+	//ModelData sphereData = MakeSphere(kSubdivision);
 
-	ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
+	//ModelData modelData2 = LoadObjFile("resource", "bunny.obj");
 
 	//ModelData modelData3 = LoadObjFile("resource", "fence.obj");
 
@@ -1342,7 +1348,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourcePlane->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane));
 	std::memcpy(indexDataPlane, modelData1.indices.data(), sizeof(uint32_t) * modelData1.indices.size());
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData2.vertics.size());
+	/*Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourcePlane2 = CreateBufferResource(device.Get(), sizeof(VertexData) * modelData2.vertics.size());
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewPlane2{};
 	vertexBufferViewPlane2.BufferLocation = vertexResourcePlane2->GetGPUVirtualAddress();
 	vertexBufferViewPlane2.SizeInBytes = UINT(sizeof(VertexData) * modelData2.vertics.size());
@@ -1358,27 +1364,28 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexBufferViewPlane2.Format = DXGI_FORMAT_R32_UINT;
 	uint32_t* indexDataPlane2 = nullptr;
 	indexResourcePlane2->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane2));
-	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());
+	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());*/
 
+	
 
 	// ---- Sphere用バッファ ----
-	Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
-	vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
-	vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereData.vertics.size());
-	vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
-	VertexData* vertexDataSphere = nullptr;
-	vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
-	std::memcpy(vertexDataSphere, sphereData.vertics.data(), sizeof(VertexData) * sphereData.vertics.size());
+	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
+	//D3D12_VERTEX_BUFFER_VIEW vertexBufferViewSphere{};
+	//vertexBufferViewSphere.BufferLocation = vertexResourceSphere->GetGPUVirtualAddress();
+	//vertexBufferViewSphere.SizeInBytes = UINT(sizeof(VertexData) * sphereData.vertics.size());
+	//vertexBufferViewSphere.StrideInBytes = sizeof(VertexData);
+	//VertexData* vertexDataSphere = nullptr;
+	//vertexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&vertexDataSphere));
+	//std::memcpy(vertexDataSphere, sphereData.vertics.data(), sizeof(VertexData) * sphereData.vertics.size());
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSphere = CreateBufferResource(device.Get(), sizeof(uint32_t) * sphereData.indices.size());
-	D3D12_INDEX_BUFFER_VIEW indexBufferViewSphere{};
-	indexBufferViewSphere.BufferLocation = indexResourceSphere->GetGPUVirtualAddress();
-	indexBufferViewSphere.SizeInBytes = UINT(sizeof(uint32_t) * sphereData.indices.size());
-	indexBufferViewSphere.Format = DXGI_FORMAT_R32_UINT;
-	uint32_t* indexDataSphere = nullptr;
-	indexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSphere));
-	std::memcpy(indexDataSphere, sphereData.indices.data(), sizeof(uint32_t) * sphereData.indices.size());
+	//Microsoft::WRL::ComPtr<ID3D12Resource> indexResourceSphere = CreateBufferResource(device.Get(), sizeof(uint32_t) * sphereData.indices.size());
+	//D3D12_INDEX_BUFFER_VIEW indexBufferViewSphere{};
+	//indexBufferViewSphere.BufferLocation = indexResourceSphere->GetGPUVirtualAddress();
+	//indexBufferViewSphere.SizeInBytes = UINT(sizeof(uint32_t) * sphereData.indices.size());
+	//indexBufferViewSphere.Format = DXGI_FORMAT_R32_UINT;
+	//uint32_t* indexDataSphere = nullptr;
+	//indexResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&indexDataSphere));
+	//std::memcpy(indexDataSphere, sphereData.indices.data(), sizeof(uint32_t) * sphereData.indices.size());
 	//Sprite用
 	Microsoft::WRL::ComPtr<ID3D12Resource>vertexResourceSprite = CreateBufferResource(device.Get(), sizeof(VertexData) * 4);
 
@@ -1541,21 +1548,43 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wvpData->WVP = MakeIdentity4x4();
 	wvpData->world = MakeIdentity4x4();
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceBunny = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
-	TransformationMatrix* wvpDataBunny = nullptr;
-	wvpResourceBunny->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataBunny));
-	wvpDataBunny->WVP = MakeIdentity4x4();
-	wvpDataBunny->world = MakeIdentity4x4();
+	//Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceBunny = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	//TransformationMatrix* wvpDataBunny = nullptr;
+	//wvpResourceBunny->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataBunny));
+	//wvpDataBunny->WVP = MakeIdentity4x4();
+	//wvpDataBunny->world = MakeIdentity4x4();
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceSphere = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
-	TransformationMatrix* wvpDataSphere = nullptr;
-	wvpResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataSphere));
-	wvpDataSphere->WVP = MakeIdentity4x4();
-	wvpDataSphere->world = MakeIdentity4x4();
+	//Microsoft::WRL::ComPtr<ID3D12Resource> wvpResourceSphere = CreateBufferResource(device.Get(), sizeof(TransformationMatrix));
+	//TransformationMatrix* wvpDataSphere = nullptr;
+	//wvpResourceSphere->Map(0, nullptr, reinterpret_cast<void**>(&wvpDataSphere));
+	//wvpDataSphere->WVP = MakeIdentity4x4();
+	//wvpDataSphere->world = MakeIdentity4x4();
 
-	const uint32_t kNumParticles = 10;
+	const uint32_t kNumInstance = 10;
 
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstance);
 	
+	TransformationMatrix* instancingData = nullptr;
+
+	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
+
+	for (uint32_t index = 0; index < kNumInstance; index++)
+	{
+		instancingData[index].WVP = MakeIdentity4x4();
+		instancingData[index].world = MakeIdentity4x4();
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC instanceSrvDesc{};
+	instanceSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	instanceSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	instanceSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	instanceSrvDesc.Buffer.FirstElement = 0;
+	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	instanceSrvDesc.Buffer.NumElements = kNumInstance;
+	instanceSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 3);
+	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 3);
+	device->CreateShaderResourceView(instancingResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU);
 
 	//シリアライズしてバイナリにする
 	ID3DBlob* signatureBlob = nullptr;
@@ -1604,11 +1633,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
 	//Shaderをコンパイルする
-	IDxcBlob* vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl", L"vs_6_0", dxcUtils, dxcComplier, includeHandler);
+	IDxcBlob* vertexShaderBlob = CompileShader(L"Particle.VS.hlsl", L"vs_6_0", dxcUtils, dxcComplier, includeHandler);
 	assert(vertexShaderBlob != nullptr);
 
-	IDxcBlob* pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl", L"ps_6_0", dxcUtils, dxcComplier, includeHandler);
+	IDxcBlob* pixelShaderBlob = CompileShader(L"Particle.PS.hlsl", L"ps_6_0", dxcUtils, dxcComplier, includeHandler);
 	assert(pixelShaderBlob != nullptr);
+
+	/*IDxcBlob* particleVSBlob = CompileShader(L"Particle.VS.hlsl", L"vs_6_0", dxcUtils, dxcComplier, includeHandler);
+	assert(particleVSBlob != nullptr);
+	IDxcBlob* particlePSBlob = CompileShader(L"Particle.PS.hlsl", L"ps_6_0", dxcUtils, dxcComplier, includeHandler);
+	assert(particlePSBlob != nullptr);*/
 
 	hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);
 	if (FAILED(hr))
@@ -1802,14 +1836,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexDataSprite[0] = 0; indexDataSprite[1] = 1;  indexDataSprite[2] = 2;
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3;  indexDataSprite[5] = 2;
 
-	if (bunnyMode)
-	{
-		DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);
-	}
-	else
-	{
-		DirectX::ScratchImage mipImages3 = LoadTexture(modelData1.material.textureFilepath);
-	}
+	//if (bunnyMode)
+	//{
+	//	DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);
+	//}
+	//else
+	//{
+	//	DirectX::ScratchImage mipImages3 = LoadTexture(modelData1.material.textureFilepath);
+	//}
 
 	Microsoft::WRL::ComPtr<IXAudio2> xAudio2;
 	IXAudio2MasteringVoice* masterVoice = nullptr;
@@ -2168,61 +2202,89 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			// ルートパラメーターや定数バッファの設定
 			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, useMonsterBall ? textureSrvHandleGPU2 : textureSrvHandleGPU);
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			uint32_t indexCount = 0;
-			if (bunnyMode || bunnySphereMode)
-			{
-				Matrix4x4 bunnyWorld = makeAffineMatrix(bunnyTransform.scale, bunnyTransform.rotate, bunnyTransform.translate);
-				wvpDataBunny->WVP = Multiply(bunnyWorld, Multiply(viewMatrix, projctionMatrix));
-				wvpDataBunny->world = bunnyWorld;
+			//if (bunnyMode || bunnySphereMode)
+			//{
+			//	Matrix4x4 bunnyWorld = makeAffineMatrix(bunnyTransform.scale, bunnyTransform.rotate, bunnyTransform.translate);
+			//	wvpDataBunny->WVP = Multiply(bunnyWorld, Multiply(viewMatrix, projctionMatrix));
+			//	wvpDataBunny->world = bunnyWorld;
 
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceBunny->GetGPUVirtualAddress()); // ← 専用バッファ
+			//	commandList->SetGraphicsRootConstantBufferView(1, wvpResourceBunny->GetGPUVirtualAddress()); // ← 専用バッファ
 
-				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
-				commandList->IASetIndexBuffer(&indexBufferViewPlane2);
-				commandList->DrawIndexedInstanced(UINT(modelData2.indices.size()), 1, 0, 0, 0);
-			}
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane2);
+			//	commandList->IASetIndexBuffer(&indexBufferViewPlane2);
+			//	commandList->DrawIndexedInstanced(UINT(modelData2.indices.size()), 1, 0, 0, 0);
+			//}
 
-			if (sphereMode || bunnySphereMode)
-			{
-				Matrix4x4 sphereWorld = makeAffineMatrix(sphereTransform.scale, sphereTransform.rotate, sphereTransform.translate);
-				wvpDataSphere->WVP = Multiply(sphereWorld, Multiply(viewMatrix, projctionMatrix));
-				wvpDataSphere->world = sphereWorld;
+			//if (sphereMode || bunnySphereMode)
+			//{
+			//	Matrix4x4 sphereWorld = makeAffineMatrix(sphereTransform.scale, sphereTransform.rotate, sphereTransform.translate);
+			//	wvpDataSphere->WVP = Multiply(sphereWorld, Multiply(viewMatrix, projctionMatrix));
+			//	wvpDataSphere->world = sphereWorld;
 
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress()); // ← 専用バッファ
+			//	commandList->SetGraphicsRootConstantBufferView(1, wvpResourceSphere->GetGPUVirtualAddress()); // ← 専用バッファ
 
-				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
-				commandList->IASetIndexBuffer(&indexBufferViewSphere);
-				commandList->DrawIndexedInstanced(UINT(sphereData.indices.size()), 1, 0, 0, 0);
-			}
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewSphere);
+			//	commandList->IASetIndexBuffer(&indexBufferViewSphere);
+			//	commandList->DrawIndexedInstanced(UINT(sphereData.indices.size()), 1, 0, 0, 0);
+			//}
 
-			if (planeMode)
-			{
-				Matrix4x4 planeWorld = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
-				wvpData->WVP = Multiply(planeWorld, Multiply(viewMatrix, projctionMatrix)); // 元々のwvpResourceはplane専用として使う
-				wvpData->world = planeWorld;
+			//if (planeMode)
+			//{
+			//	Matrix4x4 planeWorld = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			//	wvpData->WVP = Multiply(planeWorld, Multiply(viewMatrix, projctionMatrix)); // 元々のwvpResourceはplane専用として使う
+			//	wvpData->world = planeWorld;
 
-				commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			//	commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 
-				commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
-				commandList->IASetIndexBuffer(&indexBufferViewPlane);
-				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
-			}
+			//	commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
+			//	commandList->IASetIndexBuffer(&indexBufferViewPlane);
+			//	commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
+			//}
 
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
+			const float kDeltaTime = 1.0f / 60.0f;
 
+			Transform transforms[kNumInstance];
+			for(uint32_t index = 0; index < kNumInstance; ++index)
+			{
+				transforms[index].scale = { 1.0f, 1.0f, 1.0f };
+				transforms[index].rotate = { 0.0f, 0.0f, 0.0f };
+				transforms[index].translate = {index * 0.1f, index * 0.1f, index*0.1f };
+			}
 
+			for (uint32_t index = 0; index < kNumInstance; ++index)
+			{
+				Matrix4x4 worldMatrixInstance = makeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+				Matrix4x4 worldViewProjectionMatrixInstance = Multiply(worldMatrixInstance, Multiply(viewMatrix, projctionMatrix));
+				instancingData[index].WVP = worldViewProjectionMatrixInstance;
+				instancingData[index].world = worldMatrixInstance;
+			}
+			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
+			commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), kNumInstance, 0, 0, 0);
+
+			Particle particle[kNumInstance];
+			for (uint32_t index = 0; index < kNumInstance; ++index)
+			{
+				particle[index].velocity = { 0.0f,1.0f,0.0f };
+				particle[index].transform.translate.x += particle[index].velocity.x * kDeltaTime;
+				particle[index].transform.translate.y += particle[index].velocity.y * kDeltaTime;
+				particle[index].transform.translate.z += particle[index].velocity.z * kDeltaTime;
+			}
+
+			
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
 
 			// 2. Sprite用定数バッファ・記述子テーブルのセット
 			commandList->SetGraphicsRootConstantBufferView(0, materialResourceSprite->GetGPUVirtualAddress());
-			commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, transformationMatrixReourceSprite->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU); // 表示したいテクスチャのGPUハンドル
 
 			// 3. Spriteの描画実行 (インデックス数: 6)
