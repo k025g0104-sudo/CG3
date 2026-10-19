@@ -1853,10 +1853,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			//debugCamera.Update(key, mouseState);
 
-			/*if (key[DIK_0])
+			if (input->TrigerKey(DIK_0))
 			{
 				OutputDebugStringA("Hit 0\n");
-			}*/
+			}
 
 #ifdef _DEBUG
 
