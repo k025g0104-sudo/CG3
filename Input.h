@@ -18,7 +18,6 @@ public:
 
 private:
 
-	
 	ComPtr<IDirectInputDevice8> keyboard;
 };
 
