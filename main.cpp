@@ -2244,7 +2244,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			//	commandList->IASetIndexBuffer(&indexBufferViewPlane);
 			//	commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), 1, 0, 0, 0);
 			//}
-
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
@@ -2258,26 +2257,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				transforms[index].translate = {index * 0.1f, index * 0.1f, index*0.1f };
 			}
 
-			for (uint32_t index = 0; index < kNumInstance; ++index)
-			{
-				Matrix4x4 worldMatrixInstance = makeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
-				Matrix4x4 worldViewProjectionMatrixInstance = Multiply(worldMatrixInstance, Multiply(viewMatrix, projctionMatrix));
-				instancingData[index].WVP = worldViewProjectionMatrixInstance;
-				instancingData[index].world = worldMatrixInstance;
-			}
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
 			commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), kNumInstance, 0, 0, 0);
 
-			Particle particle[kNumInstance];
-			for (uint32_t index = 0; index < kNumInstance; ++index)
-			{
-				particle[index].velocity = { 0.0f,1.0f,0.0f };
-				particle[index].transform.translate.x += particle[index].velocity.x * kDeltaTime;
-				particle[index].transform.translate.y += particle[index].velocity.y * kDeltaTime;
-				particle[index].transform.translate.z += particle[index].velocity.z * kDeltaTime;
-			}
-
-			
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
 			commandList->IASetIndexBuffer(&indexBufferViewSprite);
