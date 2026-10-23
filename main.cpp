@@ -14,6 +14,7 @@
 #include <wrl.h>
 #include <xaudio2.h>
 #include "DebugCamera.h"
+#include <random>
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -66,6 +67,8 @@ struct Vector3
 	float x, y, z;
 };
 
+
+
 Vector3 Normalize(const Vector3& v)
 {
 	float length = sqrtf(v.x * v.x + v.y * v.y + v.z * v.z);
@@ -115,6 +118,9 @@ struct Particle
 {
 	Transform transform;
 	Vector3 velocity;
+	Vector4 color;
+	float lifeTime;
+	float currentTime;
 };
 
 bool operator==(const Vector2& a, const Vector2& b)
@@ -155,6 +161,13 @@ struct TransformationMatrix
 {
 	Matrix4x4 WVP;
 	Matrix4x4 world;
+};
+
+struct ParticleForGPU
+{
+	Matrix4x4 WVP;
+	Matrix4x4 world;
+	Vector4 color;
 };
 
 struct  DirectionalLight
@@ -998,6 +1011,26 @@ void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData)
 	hr = pSourceVoice->Start();
 }
 
+std::random_device seedGenerator;
+
+std::mt19937 randamEngine(seedGenerator());
+
+Particle MakeNewParticle(std::mt19937& randamEngine)
+{
+	std::uniform_real_distribution<float>distribution(-1.0f, 1.0f);
+	Particle particle;
+	particle.transform.scale = { 1.0f,1.0f,1.0f };
+	particle.transform.rotate = { 0.0f,0.0f,0.0f };
+	particle.transform.translate = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
+	particle.velocity = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
+	std::uniform_real_distribution<float>distColor(0.0f, 1.0f);
+	particle.color = { distColor(randamEngine),distColor(randamEngine),distColor(randamEngine),1.0f };
+	std::uniform_real_distribution<float>distTime(1.0f, 3.0f);
+	particle.lifeTime = distTime(randamEngine);
+	particle.currentTime = 0;
+	return particle;
+}
+
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
 
@@ -1240,7 +1273,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2, false);
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 128, true);
 
-	DirectX::ScratchImage mipImages = LoadTexture("resource/uvChecker.png");
+	DirectX::ScratchImage mipImages = LoadTexture("resource/circle.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource = CreateTextureResouce(device, metadata);
 	UploadTextureData(textureResource.Get(), mipImages);
@@ -1366,7 +1399,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexResourcePlane2->Map(0, nullptr, reinterpret_cast<void**>(&indexDataPlane2));
 	std::memcpy(indexDataPlane2, modelData2.indices.data(), sizeof(uint32_t) * modelData2.indices.size());*/
 
-	
+
 
 	// ---- Sphere用バッファ ----
 	//Microsoft::WRL::ComPtr<ID3D12Resource> vertexResourceSphere = CreateBufferResource(device.Get(), sizeof(VertexData) * sphereData.vertics.size());
@@ -1432,7 +1465,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	D3D12_DEPTH_STENCIL_DESC depthStenciDesc{};
 	depthStenciDesc.DepthEnable = true;
-	depthStenciDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	depthStenciDesc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	depthStenciDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
@@ -1448,6 +1481,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	rtvHandles[1].ptr = rtvHandles[0].ptr + device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	device->CreateRenderTargetView(swapChainResources[1], &rtvDesc, rtvHandles[1]);
+
 
 
 
@@ -1560,19 +1594,32 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//wvpDataSphere->WVP = MakeIdentity4x4();
 	//wvpDataSphere->world = MakeIdentity4x4();
 
-	const uint32_t kNumInstance = 10;
+	const uint32_t kNumMaxInstance = 10;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device.Get(), sizeof(TransformationMatrix) * kNumInstance);
-	
-	TransformationMatrix* instancingData = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumMaxInstance);
+
+	ParticleForGPU* instancingData = nullptr;
+
+	std::uniform_real_distribution<float>distribution(-1.0f, 1.0f);
+
+	const float kDeltaTime = 1.0f / 60.0f;
+
+	Particle particles[kNumMaxInstance];
+	for (uint32_t index = 0; index < kNumMaxInstance; ++index)
+	{
+		particles[index] = MakeNewParticle(randamEngine);
+	}
 
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
 
-	for (uint32_t index = 0; index < kNumInstance; index++)
+	for (uint32_t index = 0; index < kNumMaxInstance; index++)
 	{
 		instancingData[index].WVP = MakeIdentity4x4();
 		instancingData[index].world = MakeIdentity4x4();
 	}
+
+
+
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC instanceSrvDesc{};
 	instanceSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
@@ -1580,8 +1627,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	instanceSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	instanceSrvDesc.Buffer.FirstElement = 0;
 	instanceSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-	instanceSrvDesc.Buffer.NumElements = kNumInstance;
-	instanceSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+	instanceSrvDesc.Buffer.NumElements = kNumMaxInstance;
+	instanceSrvDesc.Buffer.StructureByteStride = sizeof(ParticleForGPU);
 	D3D12_CPU_DESCRIPTOR_HANDLE instanceSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 3);
 	D3D12_GPU_DESCRIPTOR_HANDLE instanceSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 3);
 	device->CreateShaderResourceView(instancingResource.Get(), &instanceSrvDesc, instanceSrvHandleCPU);
@@ -1618,10 +1665,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	blendDesc.RenderTarget[0].BlendEnable = TRUE;
 	blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 	blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_REV_SUBTRACT;
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_ONE;          // ← NormalBlend の INV_SRC_ALPHA から変更
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
 	//RasterizerStateの設定
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
@@ -2247,18 +2294,43 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
-			const float kDeltaTime = 1.0f / 60.0f;
-
-			Transform transforms[kNumInstance];
-			for(uint32_t index = 0; index < kNumInstance; ++index)
+			uint32_t numInstance = 0;
+			for (uint32_t index = 0; index < kNumMaxInstance; ++index)
 			{
-				transforms[index].scale = { 1.0f, 1.0f, 1.0f };
-				transforms[index].rotate = { 0.0f, 0.0f, 0.0f };
-				transforms[index].translate = {index * 0.1f, index * 0.1f, index*0.1f };
+
+				if (particles[index].lifeTime <= particles[index].currentTime)
+				{
+					continue;
+				}
+
+
+				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
+				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
+				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
+				particles[index].currentTime += kDeltaTime;
+
+
+				Matrix4x4 world = makeAffineMatrix(
+					particles[index].transform.scale,
+					particles[index].transform.rotate,
+					particles[index].transform.translate);
+
+				instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
+				instancingData[numInstance].world = world;
+				instancingData[numInstance].color = particles[index].color;
+				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
+				instancingData[numInstance].color.w = alpha;
+
+				++numInstance;
 			}
 
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
-			commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), kNumInstance, 0, 0, 0);
+
+			if (numInstance > 0)
+			{
+				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), numInstance, 0, 0, 0);
+			}
+
 
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
