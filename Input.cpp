@@ -60,21 +60,13 @@ void Input::Update()
 
 bool Input::PushKey(BYTE keyNumber)
 {
-
-	if (key[keyNumber])
-	{
-		return true;
+	return key[keyNumber] != 0;
 	}
-
-	return false;
-}
 
 bool Input::TrigerKey(BYTE keyNumber)
 {
-	
-	if (key[keyNumber])
-	{
-		return true;
+	// 今回は押されていて、前回は押されていない
+	return key[keyNumber] != 0 && keyPrev[keyNumber] == 0;
 	}
 	else
 	{
