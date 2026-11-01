@@ -10,6 +10,7 @@ public:
 
 	void Initialize();
 	void Update();
+	void Finalize();
 
 	HWND GetHwnd() const { return hwnd; }
 

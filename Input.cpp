@@ -25,12 +25,13 @@
 using namespace Microsoft::WRL;
 
 
-void Input::Initialize(HINSTANCE hInstance, HWND hwnd)
+void Input::Initialize(WinApp* winApp)
 {
 	HRESULT result;
 
+	this->winApp = winApp;
 
-	result = DirectInput8Create(hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
+	result = DirectInput8Create(winApp->GetHInstance(), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
 	assert(SUCCEEDED(result));
 
 	//ComPtr<IDirectInputDevice8> keyboard = nullptr;
@@ -40,7 +41,7 @@ void Input::Initialize(HINSTANCE hInstance, HWND hwnd)
 	result = keyboard->SetDataFormat(&c_dfDIKeyboard);
 	assert(SUCCEEDED(result));
 
-	result = keyboard->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
+	result = keyboard->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE | DISCL_NOWINKEY);
 	assert(SUCCEEDED(result));
 }
 

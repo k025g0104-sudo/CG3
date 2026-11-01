@@ -1012,6 +1012,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	winApp = new WinApp();
 	winApp->Initialize();
+	winApp->Finalize();
 
 	//DXGIファクトリーの生成
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
@@ -1808,7 +1809,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Input* input = nullptr;
 
 	input = new Input();
-	input->Initialize(winApp->GetHInstance(),winApp->GetHwnd());
+	input->Initialize(winApp);
+	
 
 	
 
