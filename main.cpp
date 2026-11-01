@@ -1839,13 +1839,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	debugCamera.Initialize();
 
 	//ウィンドウのｘボタンが押されるまでループ
-	while (msg.message != WM_QUIT)
+	while (true)
 	{
 		//Windowsにメッセージが来てたら最優先で処理をさせる
-		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		if (winApp->ProcessMessage())
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			break;
 		}
 		else
 		{
