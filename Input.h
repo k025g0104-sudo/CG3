@@ -17,7 +17,7 @@ public:
 	void Update();
 
 	bool PushKey(BYTE keyNumber);
-	bool TrigerKey(BYTE keyNumber);
+	bool TriggerKey(BYTE keyNumber);
 private:
 	
 	ComPtr<IDirectInputDevice8> keyboard;

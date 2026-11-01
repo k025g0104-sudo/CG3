@@ -15,6 +15,7 @@
 #include <xaudio2.h>
 #include "DebugCamera.h"
 #include "Input.h"
+#include "WinApp.h"
 #ifdef USE_IMGUI
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -1007,6 +1008,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<IDXGIFactory7>IDXGIFactory;
 	Microsoft::WRL::ComPtr<ID3D12Device>device;
 
+	WinApp* winApp = nullptr;
+
+	winApp = new WinApp();
+	winApp->Initialize();
 
 	//DXGIファクトリーの生成
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
@@ -1853,7 +1858,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			//debugCamera.Update(key, mouseState);
 
-			if (input->TrigerKey(DIK_0))
+			if (input->TriggerKey(DIK_0))
 			{
 				OutputDebugStringA("Hit 0\n");
 			}
@@ -2263,6 +2268,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 #endif // DEBUG
 
+	delete winApp;
 
 	if (includeHandler)
 	{

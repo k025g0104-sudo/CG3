@@ -63,7 +63,7 @@ bool Input::PushKey(BYTE keyNumber)
 	return key[keyNumber] != 0;
 }
 
-bool Input::TrigerKey(BYTE keyNumber)
+bool Input::TriggerKey(BYTE keyNumber)
 {
 	// 今回は押されていて、前回は押されていない
 	return key[keyNumber] != 0 && keyPrev[keyNumber] == 0;
