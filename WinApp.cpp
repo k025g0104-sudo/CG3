@@ -26,22 +26,22 @@ void WinApp::Initialize()
 {
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
 
-	wc_.lpfnWndProc = WindowProc;
-	wc_.lpszClassName = L"CG3WindowClass";
-	wc_.hInstance = GetModuleHandle(nullptr);
-	wc_.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wc.lpfnWndProc = WindowProc;
+	wc.lpszClassName = L"CG3WindowClass";
+	wc.hInstance = GetModuleHandle(nullptr);
+	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
 
-	RegisterClass(&wc_);
+	RegisterClass(&wc);
 
 	RECT wrc = { 0, 0, kClientWidth, kClientHeight };
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 
-	hwnd_ = CreateWindow(wc_.lpszClassName, L"CG3", WS_OVERLAPPEDWINDOW,
+	/*hwnd_*/ hwnd = CreateWindow(wc.lpszClassName, L"CG3", WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		wrc.right - wrc.left, wrc.bottom - wrc.top,
-		nullptr, nullptr, wc_.hInstance, nullptr);
+		nullptr, nullptr, wc.hInstance, nullptr);
 
-	ShowWindow(hwnd_, SW_SHOW);
+	ShowWindow(hwnd, SW_SHOW);
 }
 
 void WinApp::Update()
