@@ -1,7 +1,5 @@
 #include "Input.h"
 
-#include <cstdint>
-#include <string>
 #include <cassert>
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -21,9 +19,6 @@
 
 #pragma comment(lib,"dinput8.lib")
 #pragma comment(lib,"dxguid.lib")
-
-using namespace Microsoft::WRL;
-
 
 void Input::Initialize(WinApp* winApp)
 {
