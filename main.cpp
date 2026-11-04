@@ -16,12 +16,11 @@
 #include "DebugCamera.h"
 #include "Input.h"
 #include "WinApp.h"
-#ifdef USE_IMGUI
+#ifdef _DEBUG
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
 #include "externals/imgui/imgui_impl_dx12.h"
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-#endif // USE_IMGUI
+#endif // _DEBUG
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 #pragma comment(lib,"dxguid.lib")
@@ -531,32 +530,6 @@ IDxcBlob* CompileShader(
 	return shaderBlob;
 }
 
-//ウィンドウプロシージャ
-LRESULT CALLBACK  WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-#ifdef _DEBUG
-
-	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wParam, lParam))
-	{
-		return true;
-	}
-
-#endif // DEBUG
-
-	//メッセージに応じてゲーム固有の処理を行う
-	switch (msg)
-	{
-		//ウィンドウが破棄された
-	case WM_DESTROY:
-		//OSに対して、アプリの終了を伝える
-		PostQuitMessage(0);
-		return 0;
-	}
-
-	//標準のメッセージ処理を行う
-	return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
 Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> CreateDescriptorHeap(ID3D12Device* device, D3D12_DESCRIPTOR_HEAP_TYPE heapType, UINT numDescriptors, bool shaderVisible)
 
 {
@@ -987,7 +960,6 @@ void SoundPlayerWave(IXAudio2* xAudio2, const SoundData& soundData)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 {
 
-	CoInitializeEx(0, COINIT_MULTITHREADED);
 
 #ifdef _DEBUG
 
@@ -1012,7 +984,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	winApp = new WinApp();
 	winApp->Initialize();
-	winApp->Finalize();
 
 	//DXGIファクトリーの生成
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
@@ -1116,47 +1087,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 #endif // _DEBUG
 
 
-	WNDCLASS wc{};
-	//ウィンドウプロシージャ
-	wc.lpfnWndProc = WindowProc;
-
-	//ウィンドウクラス名
-	wc.lpszClassName = L"CG2WindowClass";
-
-	//インスタンスハンドル
-	wc.hInstance = GetModuleHandle(nullptr);
-
-	//カーソル
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-
-	//ウィンドウクラスの登録
-	RegisterClass(&wc);
-
-	//クライアント領域のサイズ
-	const int32_t kClientWidth = 1280;
-	const int32_t kClientHeight = 720;
-
-	//ウィンドウサイズを表す構造体にクライアント領域を入れる
-	RECT wrc = { 0,0,kClientWidth,kClientHeight };
-	//クライアント領域を元に実際のサイズにwrcを変更してもらう
-	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
-
-	//ウィンドウの生成
-	HWND hwnd = CreateWindow(
-		wc.lpszClassName, //利用するクラス名
-		L"CG2", //タイトルバーの文字
-		WS_OVERLAPPEDWINDOW,//よく見るウィンドウスタイル
-		CW_USEDEFAULT,//表示X座標（OSに任せる）
-		CW_USEDEFAULT,//表示Y座標（OSに任せる）
-		wrc.right - wrc.left,//ウィンドウ横幅
-		wrc.bottom - wrc.top,//ウィンドウ縦幅
-		nullptr,//親ウィンドウハンドル
-		nullptr,//メニューハンドル
-		wc.hInstance,//インスタンスハンドル
-		nullptr//オプション
-	);
-
-	ShowWindow(hwnd, SW_SHOW);
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> commandQueue = nullptr;
 	D3D12_COMMAND_QUEUE_DESC commandQueueDesc{};
@@ -1411,7 +1341,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	vertexDataSprite[3].texcoord = { 1.0f,0.0f };
 	vertexDataSprite[3].normal = { 0.0f,0.0f,-1.0f };
 
-	ID3D12Resource* depthStencilResouce = CreateDepthStencilTextureResouce(device.Get(), kClientWidth, kClientHeight);
+	ID3D12Resource* depthStencilResouce = CreateDepthStencilTextureResouce(device.Get(), WinApp::kClientWidth, WinApp::kClientHeight);
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap = CreateDescriptorHeap(device.Get(), D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 
@@ -1675,8 +1605,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//ビューポート
 	D3D12_VIEWPORT viewport{};
 
-	viewport.Width = kClientWidth;
-	viewport.Height = kClientHeight;
+	viewport.Width = WinApp::kClientWidth;
+	viewport.Height = WinApp::kClientHeight;
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 	viewport.MinDepth = 0.0f;
@@ -1684,9 +1614,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	D3D12_RECT scissorRect{};
 	scissorRect.left = 0;
-	scissorRect.right = kClientWidth;
+	scissorRect.right = WinApp::kClientWidth;
 	scissorRect.top = 0;
-	scissorRect.bottom = kClientHeight;
+	scissorRect.bottom = WinApp::kClientHeight;
 
 
 #ifdef _DEBUG
@@ -1695,7 +1625,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
-	ImGui_ImplWin32_Init(hwnd);
+	ImGui_ImplWin32_Init(winApp->GetHwnd());
 	ImGui_ImplDX12_Init
 	(
 		device.Get(),
@@ -1803,16 +1733,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	SoundData soundData1 = SoundLoadWave("resource/Alarm01.wav");
 
 	IDirectInput8* directInput = nullptr;
-	hr = DirectInput8Create(wc.hInstance, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
+	hr = DirectInput8Create(winApp->GetHInstance(), DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&directInput, nullptr);
 	assert(SUCCEEDED(hr));
 
 	Input* input = nullptr;
 
 	input = new Input();
 	input->Initialize(winApp);
-	
 
-	
+
+
 
 	//IDirectInputDevice8* keyboard = nullptr;
 	//hr = directInput->CreateDevice(GUID_SysKeyboard, &keyboard, NULL);
@@ -1832,7 +1762,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	hr = mouse->SetDataFormat(&c_dfDIMouse2);
 	assert(SUCCEEDED(hr));
 
-	hr = mouse->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
+	hr = mouse->SetCooperativeLevel(winApp->GetHwnd(), DISCL_FOREGROUND | DISCL_NONEXCLUSIVE);
 	assert(SUCCEEDED(hr));
 
 	DebugCamera debugCamera;
@@ -2064,7 +1994,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			{
 				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
-				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(WinApp::kClientWidth) / WinApp::kClientHeight, 0.1f, 100.0f);
 			}
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
@@ -2078,8 +2008,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 			Matrix4x4 projectionMatrixSprite = MakeOrthographicMatrix(
 				0.0f, 0.0f,
-				static_cast<float>(kClientWidth),
-				static_cast<float>(kClientHeight),
+				static_cast<float>(WinApp::kClientWidth),
+				static_cast<float>(WinApp::kClientHeight),
 				0.0f, 100.0f
 			);
 
@@ -2269,6 +2199,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 #endif // DEBUG
 
+	//ウィンドウ・COMの終了処理は delete の前に呼ぶ
+	winApp->Finalize();
 	delete winApp;
 
 	if (includeHandler)
@@ -2340,19 +2272,18 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	delete input;
 
+	if (directInput)
+	{
+		directInput->Release();
+	}
+
 
 #ifdef _DEBUG
 	if (debugController)
 	{
 		debugController->Release();
 	}
-#endif // _DEBUGf
-
-	if (hwnd)
-	{
-		DestroyWindow(hwnd);
-	}
-
+#endif // _DEBUG
 	// リソースリークチェック
 	IDXGIDebug1* debug;
 	if (SUCCEEDED(DXGIGetDebugInterface1(0, IID_PPV_ARGS(&debug))))
@@ -2363,7 +2294,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		debug->Release();
 	}
 
-	CoUninitialize();
 
 	return 0;
 }

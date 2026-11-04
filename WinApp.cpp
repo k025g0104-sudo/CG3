@@ -1,17 +1,19 @@
 #include "WinApp.h"
 #ifdef _DEBUG
-#include "externals//imgui/imgui.h"
+#include "externals/imgui/imgui.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 #endif // _DEBUG
 
 LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+#ifdef _DEBUG
 	if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
-	{ 
-		return true; 
+	{
+		return true;
 	}
+#endif // _DEBUG
 
-
-	switch (msg) 
+	switch (msg)
 	{
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -23,6 +25,7 @@ LRESULT CALLBACK WinApp::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 void WinApp::Initialize()
 {
 	HRESULT hr = CoInitializeEx(0, COINIT_MULTITHREADED);
+	(void)hr;
 
 	wc.lpfnWndProc = WindowProc;
 	wc.lpszClassName = L"CG3WindowClass";
@@ -34,7 +37,7 @@ void WinApp::Initialize()
 	RECT wrc = { 0, 0, kClientWidth, kClientHeight };
 	AdjustWindowRect(&wrc, WS_OVERLAPPEDWINDOW, false);
 
-	/*hwnd_*/ hwnd = CreateWindow(wc.lpszClassName, L"CG3", WS_OVERLAPPEDWINDOW,
+	hwnd = CreateWindow(wc.lpszClassName, L"CG3", WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
 		wrc.right - wrc.left, wrc.bottom - wrc.top,
 		nullptr, nullptr, wc.hInstance, nullptr);
@@ -48,7 +51,12 @@ void WinApp::Update()
 
 void WinApp::Finalize()
 {
-	CloseWindow(hwnd);
+	if (hwnd)
+	{
+		DestroyWindow(hwnd);
+		hwnd = nullptr;
+	}
+	UnregisterClass(wc.lpszClassName, wc.hInstance);
 	CoUninitialize();
 }
 
@@ -56,7 +64,7 @@ bool WinApp::ProcessMessage()
 {
 	MSG msg{};
 
-	if (PeekMessage(&msg,nullptr,0,0,PM_REMOVE))
+	if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
 	{
 		TranslateMessage(&msg);
 		DispatchMessageW(&msg);
@@ -64,7 +72,7 @@ bool WinApp::ProcessMessage()
 
 	if (msg.message == WM_QUIT)
 	{
-		return  true;
+		return true;
 	}
 
 	return false;
