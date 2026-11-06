@@ -231,8 +231,8 @@ struct SoundData
 
 struct AABB
 {
-
-
+	Vector3 min;
+	Vector3 max;
 };
 
 struct AccelerationField
@@ -241,8 +241,18 @@ struct AccelerationField
 	AABB area;
 };
 
-bool IsCollision(const AABB& aabb, const Vector3& point);
 
+
+bool IsCollision(const AABB& aabb, const Vector3& point)
+{
+	if ((point.x >= aabb.min.x && point.x <= aabb.max.x) &&
+		(point.y >= aabb.min.y && point.y <= aabb.max.y) &&
+		(point.z >= aabb.min.z && point.z <= aabb.max.z))
+	{
+		return true;
+	}
+	return false;
+}
 
 class ResourceObject
 {
@@ -1038,17 +1048,92 @@ std::mt19937 randamEngine(seedGenerator());
 
 Particle MakeNewParticle(std::mt19937& randamEngine)
 {
-	std::uniform_real_distribution<float>distribution(-1.0f, 1.0f);
+	std::uniform_real_distribution<float> distribution(-0.5f, 0.5f);
 	Particle particle;
-	particle.transform.scale = { 1.0f,1.0f,1.0f };
-	particle.transform.rotate = { 0.0f,0.0f,0.0f };
-	particle.transform.translate = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
-	particle.velocity = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
-	std::uniform_real_distribution<float>distColor(0.0f, 1.0f);
-	particle.color = { distColor(randamEngine),distColor(randamEngine),distColor(randamEngine),1.0f };
-	std::uniform_real_distribution<float>distTime(1.0f, 3.0f);
+
+	particle.transform.scale = { 0.8f, 0.8f, 0.8f };
+	particle.transform.rotate = { 0.1f, 0.1f, 0.1f };
+
+	particle.transform.translate = {
+		distribution(randamEngine),
+		distribution(randamEngine),
+		distribution(randamEngine)
+	};
+
+
+	std::uniform_real_distribution<float> distVel(-6.0f, 6.0f);
+	particle.velocity = {
+		distVel(randamEngine),
+		distVel(randamEngine),
+		distVel(randamEngine)
+	};
+
+	std::uniform_real_distribution<float> distColor(0.5f, 1.0f);
+	particle.color = { distColor(randamEngine), distColor(randamEngine), distColor(randamEngine), 1.0f };
+
+	std::uniform_real_distribution<float> distTime(0.5f, 2.0f);
 	particle.lifeTime = distTime(randamEngine);
 	particle.currentTime = 0;
+
+	return particle;
+}
+
+Vector3 GetMouseWorldPosition(const DIMOUSESTATE2& mouseState, HWND hwnd, int32_t clientWidth, int32_t clientHeight, const Matrix4x4& viewMatrix, const Matrix4x4& projectionMatrix)
+{
+	POINT mousePos;
+	GetCursorPos(&mousePos);
+	ScreenToClient(hwnd, &mousePos);
+
+	float ndcX = (2.0f * mousePos.x) / clientWidth - 1.0f;
+	float ndcY = 1.0f - (2.0f * mousePos.y) / clientHeight;
+
+	Matrix4x4 vpMatrix = Multiply(viewMatrix, projectionMatrix);
+	Matrix4x4 invVP = Inverse(vpMatrix);
+
+	Vector4 nearPoint = { ndcX, ndcY, 0.0f, 1.0f };
+	Vector4 farPoint = { ndcX, ndcY, 1.0f, 1.0f };
+
+	auto TransformPoint = [](const Vector4& v, const Matrix4x4& m) -> Vector3 {
+		Vector4 r;
+		r.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + v.w * m.m[3][0];
+		r.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + v.w * m.m[3][1];
+		r.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + v.w * m.m[3][2];
+		float w = v.x * m.m[0][3] + v.y * m.m[1][3] + v.z * m.m[2][3] + v.w * m.m[3][3];
+		return { r.x / w, r.y / w, r.z / w };
+		};
+
+	Vector3 rayStart = TransformPoint(nearPoint, invVP);
+	Vector3 rayEnd = TransformPoint(farPoint, invVP);
+	Vector3 rayDir = { rayEnd.x - rayStart.x, rayEnd.y - rayStart.y, rayEnd.z - rayStart.z };
+
+	float t = -rayStart.z / rayDir.z;
+	return { rayStart.x + rayDir.x * t, rayStart.y + rayDir.y * t, 0.0f };
+}
+
+
+Particle MakeNewParticle(std::mt19937& randamEngine, const Vector3& emitterPosition)
+{
+	std::uniform_real_distribution<float> distribution(-0.2f, 0.2f); // 広がり具合
+	Particle particle;
+	particle.transform.scale = { 0.2f, 0.2f, 0.2f };
+	particle.transform.rotate = { 0.0f, 0.0f, 0.0f };
+
+	particle.transform.translate = {
+		emitterPosition.x + distribution(randamEngine),
+		emitterPosition.y + distribution(randamEngine),
+		emitterPosition.z + distribution(randamEngine)
+	};
+
+	std::uniform_real_distribution<float> distVel(-0.5f, 0.5f);
+	particle.velocity = { distVel(randamEngine), distVel(randamEngine), distVel(randamEngine) };
+
+	std::uniform_real_distribution<float> distColor(0.5f, 1.0f);
+	particle.color = { distColor(randamEngine), distColor(randamEngine), distColor(randamEngine), 1.0f };
+
+	std::uniform_real_distribution<float> distTime(0.5f, 1.5f);
+	particle.lifeTime = distTime(randamEngine);
+	particle.currentTime = 0;
+
 	return particle;
 }
 
@@ -1075,7 +1160,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	D3DResourceLeakChecker leakCheck;
 	Microsoft::WRL::ComPtr<IDXGIFactory7>IDXGIFactory;
 	Microsoft::WRL::ComPtr<ID3D12Device>device;
-
 
 	//DXGIファクトリーの生成
 	Microsoft::WRL::ComPtr<IDXGIFactory7> dxgiFactory = nullptr;
@@ -1615,7 +1699,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//wvpDataSphere->WVP = MakeIdentity4x4();
 	//wvpDataSphere->world = MakeIdentity4x4();
 
-	const uint32_t kNumMaxInstance = 10;
+	const uint32_t kNumMaxInstance = 1000;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumMaxInstance);
 
@@ -1629,6 +1713,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	for (uint32_t index = 0; index < kNumMaxInstance; ++index)
 	{
 		particles[index] = MakeNewParticle(randamEngine);
+		std::uniform_real_distribution<float> distTime(0.0f, particles[index].lifeTime);
+		particles[index].currentTime = distTime(randamEngine);
 	}
 
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
@@ -1949,6 +2035,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	DebugCamera debugCamera;
 	debugCamera.Initialize();
+
+	Vector3 prevMouseWorldPos = { 0.0f, 0.0f, 0.0f };
 
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
@@ -2315,33 +2403,97 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
+			AccelerationField accelerationField;
+
+			POINT mousePos;
+			GetCursorPos(&mousePos);
+			ScreenToClient(hwnd, &mousePos);
+
+			float ndcX = (2.0f * mousePos.x) / static_cast<float>(kClientWidth) - 1.0f;
+			float ndcY = 1.0f - (2.0f * mousePos.y) / static_cast<float>(kClientHeight);
+
+			Matrix4x4 vpMatrix = Multiply(viewMatrix, projctionMatrix);
+			Matrix4x4 invVP = Inverse(vpMatrix);
+
+			Vector4 nearPoint = { ndcX, ndcY, 0.0f, 1.0f };
+			Vector4 farPoint = { ndcX, ndcY, 1.0f, 1.0f };
+
+			auto TransformPoint = [](const Vector4& v, const Matrix4x4& m) -> Vector3 {
+				float x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0] + v.w * m.m[3][0];
+				float y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1] + v.w * m.m[3][1];
+				float z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2] + v.w * m.m[3][2];
+				float w = v.x * m.m[0][3] + v.y * m.m[1][3] + v.z * m.m[2][3] + v.w * m.m[3][3];
+				return { x / w, y / w, z / w };
+				};
+
+			Vector3 rayStart = TransformPoint(nearPoint, invVP);
+			Vector3 rayEnd = TransformPoint(farPoint, invVP);
+			Vector3 rayDir = { rayEnd.x - rayStart.x, rayEnd.y - rayStart.y, rayEnd.z - rayStart.z };
+
+			float t = -rayStart.z / rayDir.z;
+			Vector3 currentMouseWorldPos = { rayStart.x + rayDir.x * t, rayStart.y + rayDir.y * t, 0.0f };
+
+			static Vector3 prevMouseWorldPos = currentMouseWorldPos;
+			Vector3 mouseMove = {
+				currentMouseWorldPos.x - prevMouseWorldPos.x,
+				currentMouseWorldPos.y - prevMouseWorldPos.y,
+				0.0f
+			};
+
+			float windPower = 60.0f;
+			accelerationField.acceleration = {
+				-mouseMove.x * windPower,
+				-mouseMove.y * windPower,
+				0.0f
+			};
+
+			accelerationField.area.min = { currentMouseWorldPos.x - 10.0f, currentMouseWorldPos.y - 10.0f, -5.0f };
+			accelerationField.area.max = { currentMouseWorldPos.x + 10.0f, currentMouseWorldPos.y + 10.0f,  5.0f };
+
+			prevMouseWorldPos = currentMouseWorldPos;
 			uint32_t numInstance = 0;
 			for (uint32_t index = 0; index < kNumMaxInstance; ++index)
 			{
+				// 寿命が尽きたらマウスの位置に追従して再生成
 				if (particles[index].lifeTime <= particles[index].currentTime)
 				{
 					particles[index] = MakeNewParticle(randamEngine);
+					// 出現場所をマウスのワールド座標へ変更
+					particles[index].transform.translate = currentMouseWorldPos;
 				}
 
+				// 資料画像の通り：位置を動かす前に Field（風）の加速度を適用
+				if (IsCollision(accelerationField.area, particles[index].transform.translate))
+				{
+					particles[index].velocity.x += accelerationField.acceleration.x * kDeltaTime;
+					particles[index].velocity.y += accelerationField.acceleration.y * kDeltaTime;
+					particles[index].velocity.z += accelerationField.acceleration.z * kDeltaTime;
+				}
+
+				// 位置の移動更新
 				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
 				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
 				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
 				particles[index].currentTime += kDeltaTime;
 
+				// 行列計算
 				Matrix4x4 world = makeAffineMatrix(
 					particles[index].transform.scale,
 					particles[index].transform.rotate,
 					particles[index].transform.translate);
 
+				// インスタンスデータへ流し込み
 				instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
 				instancingData[numInstance].world = world;
 				instancingData[numInstance].color = particles[index].color;
 
+				// 透明度（アルファ値）のフェードアウト
 				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
 				instancingData[numInstance].color.w = (std::max)(0.0f, alpha);
 
 				++numInstance;
 			}
+
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
 
 			if (numInstance > 0)
