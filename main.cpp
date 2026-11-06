@@ -123,6 +123,8 @@ struct Particle
 	float currentTime;
 };
 
+
+
 bool operator==(const Vector2& a, const Vector2& b)
 {
 	return a.x == b.x && a.y == b.y;
@@ -142,6 +144,8 @@ bool operator==(const VertexData& a, const VertexData& b)
 {
 	return a.position == b.position && a.texcoord == b.texcoord && a.normal == b.normal;
 }
+
+
 
 struct Material
 {
@@ -224,6 +228,21 @@ struct SoundData
 	BYTE* pBuffer;
 	unsigned int bufferSize;
 };
+
+struct AABB
+{
+
+
+};
+
+struct AccelerationField
+{
+	Vector3 acceleration;
+	AABB area;
+};
+
+bool IsCollision(const AABB& aabb, const Vector3& point);
+
 
 class ResourceObject
 {
@@ -452,6 +471,8 @@ Matrix4x4 MakeOrthographicMatrix(float left, float top, float right, float botto
 	result.m[3][3] = 1.0f;
 	return result;
 }
+
+
 
 std::string ConvertString(const std::wstring& str)
 {
@@ -2297,18 +2318,15 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			uint32_t numInstance = 0;
 			for (uint32_t index = 0; index < kNumMaxInstance; ++index)
 			{
-
 				if (particles[index].lifeTime <= particles[index].currentTime)
 				{
-					continue;
+					particles[index] = MakeNewParticle(randamEngine);
 				}
-
 
 				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
 				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
 				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
 				particles[index].currentTime += kDeltaTime;
-
 
 				Matrix4x4 world = makeAffineMatrix(
 					particles[index].transform.scale,
@@ -2318,19 +2336,18 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
 				instancingData[numInstance].world = world;
 				instancingData[numInstance].color = particles[index].color;
+
 				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
-				instancingData[numInstance].color.w = alpha;
+				instancingData[numInstance].color.w = (std::max)(0.0f, alpha);
 
 				++numInstance;
 			}
-
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
 
 			if (numInstance > 0)
 			{
 				commandList->DrawIndexedInstanced(UINT(modelData1.indices.size()), numInstance, 0, 0, 0);
 			}
-
 
 			//----Sprite---------
 			commandList->IASetVertexBuffers(0, 1, &vertexbufferviewSprite);
