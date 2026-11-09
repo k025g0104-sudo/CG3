@@ -884,6 +884,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	D3DResourceLeakChecker leakCheck;
 
+	// DirectXの初期化(デバイス〜ImGuiまで全部ここ)
+	DirectXCommon* dxCommon = new DirectXCommon();
+	dxCommon->Initialize(winApp);
 
 	// 以降のコードで使うので DirectXCommon から借りてくる
 	HRESULT hr = S_OK;
@@ -919,10 +922,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 
 	const uint32_t desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	const uint32_t desriptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	const uint32_t desriptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
 
-	//GetCPUDescriptorHandle(rtvDescriptorHeap.Get(), desriptorSizeRTV, 0);
 
 
 	//SRVを作成するDescriptorHeapの場所を決める
@@ -1430,7 +1430,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 		else
 		{
 			//ゲームの処理
-			UINT backBufferIndex = swapChain->GetCurrentBackBufferIndex();
 
 			input->Update();
 
