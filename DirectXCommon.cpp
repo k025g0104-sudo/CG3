@@ -18,24 +18,9 @@ using namespace Microsoft::WRL;
 
 void DirectXCommon::Initialize(WinApp* winApp)
 {
-	assert(winApp);
-	winApp_ = winApp;
 
-	InitializeDevice();
-	InitializeCommand();
-	CreateSwapChain();
-	CreateDepthBuffer();
-	CreateDescriptorHeaps();
-	InitializeRenderTargetView();
-	InitializeDepthStencilView();
-	CreateFence();
-	InitializeViewport();
-	InitializeScissorRect();
-	CreateDXCCompiler();
-	InitializeImGui();
 }
 
-// ① デバイスの生成
 void DirectXCommon::InitializeDevice()
 {
 #ifdef _DEBUG
@@ -169,7 +154,6 @@ void DirectXCommon::CreateDepthBuffer()
 	depthStencilResource_ = CreateDepthStencilTextureResource(WinApp::kClientWidth, WinApp::kClientHeight);
 }
 
-// ⑤ 各種デスクリプタヒープの生成
 void DirectXCommon::CreateDescriptorHeaps()
 {
 	rtvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, kBackBufferCount, false);
@@ -177,7 +161,6 @@ void DirectXCommon::CreateDescriptorHeaps()
 	dsvDescriptorHeap_ = CreateDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1, false);
 }
 
-// ⑥ レンダーターゲットビューの初期化
 void DirectXCommon::InitializeRenderTargetView()
 {
 	// SwapChainからResourceを引っ張ってくる
@@ -201,7 +184,6 @@ void DirectXCommon::InitializeRenderTargetView()
 	}
 }
 
-// ⑦ 深度ステンシルビューの初期化
 void DirectXCommon::InitializeDepthStencilView()
 {
 	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{};
@@ -210,7 +192,6 @@ void DirectXCommon::InitializeDepthStencilView()
 	device_->CreateDepthStencilView(depthStencilResource_.Get(), &dsvDesc, dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart());
 }
 
-// ⑧ フェンスの生成
 void DirectXCommon::CreateFence()
 {
 	fenceValue_ = 0;
@@ -222,7 +203,6 @@ void DirectXCommon::CreateFence()
 	assert(fenceEvent_ != nullptr);
 }
 
-// ⑨ ビューポート矩形の初期化
 void DirectXCommon::InitializeViewport()
 {
 	viewport_.Width = WinApp::kClientWidth;
@@ -233,7 +213,6 @@ void DirectXCommon::InitializeViewport()
 	viewport_.MaxDepth = 1.0f;
 }
 
-// ⑩ シザリング矩形の生成
 void DirectXCommon::InitializeScissorRect()
 {
 	scissorRect_.left = 0;
@@ -242,7 +221,6 @@ void DirectXCommon::InitializeScissorRect()
 	scissorRect_.bottom = WinApp::kClientHeight;
 }
 
-// ⑪ DXCコンパイラの生成
 void DirectXCommon::CreateDXCCompiler()
 {
 	HRESULT hr = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils_));
