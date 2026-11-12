@@ -19,6 +19,22 @@ using namespace Microsoft::WRL;
 void DirectXCommon::Initialize(WinApp* winApp)
 {
 
+	winApp_ = winApp;
+
+	InitializeDevice();
+	InitializeCommand();
+	CreateSwapChain();
+	CreateDepthBuffer();
+	CreateDescriptorHeaps();
+	InitializeRenderTargetView();
+	InitializeDepthStencilView();
+	CreateFence();
+	InitializeViewport();
+	InitializeScissorRect();
+	CreateDXCCompiler();
+	InitializeImGui();
+	PreDraw();
+	PostDraw();
 }
 
 void DirectXCommon::InitializeDevice()
@@ -53,7 +69,7 @@ void DirectXCommon::InitializeDevice()
 			Log(ConvertString(std::format(L"Use Adapter:{}\n", adapterDesc.Description)));
 			break;
 		}
-		useAdapter.Reset(); // ソフトウェアアダプタは見なかったことにする
+		useAdapter.Reset();
 	}
 	assert(useAdapter != nullptr);
 
@@ -148,7 +164,7 @@ void DirectXCommon::CreateSwapChain()
 	assert(SUCCEEDED(hr));
 }
 
-// ④ 深度バッファの生成
+
 void DirectXCommon::CreateDepthBuffer()
 {
 	depthStencilResource_ = CreateDepthStencilTextureResource(WinApp::kClientWidth, WinApp::kClientHeight);
@@ -233,10 +249,13 @@ void DirectXCommon::CreateDXCCompiler()
 	assert(SUCCEEDED(hr));
 }
 
-// ⑫ ImGuiの初期化
+
 void DirectXCommon::InitializeImGui()
 {
 #ifdef _DEBUG
+	assert(device_ != nullptr);
+	assert(srvDescriptorHeap_ != nullptr);
+
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();

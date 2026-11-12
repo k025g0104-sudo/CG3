@@ -32,11 +32,20 @@ void Input::Initialize(WinApp* winApp)
 
 void Input::Update()
 {
+
+	if (!keyboard)
+	{
+		return;
+	}
+
 	// 前回のキー状態を保存
 	memcpy(keyPrev, key, sizeof(key));
 
-	// キーボード情報の取得開始
-	keyboard->Acquire();
+	HRESULT hr = keyboard->Acquire();
+	if (FAILED(hr))
+	{
+		return;
+	}
 
 	// 全キーの入力状態を取得
 	keyboard->GetDeviceState(sizeof(key), key);
