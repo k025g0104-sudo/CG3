@@ -33,8 +33,6 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	InitializeScissorRect();
 	CreateDXCCompiler();
 	InitializeImGui();
-	PreDraw();
-	PostDraw();
 }
 
 void DirectXCommon::InitializeDevice()
@@ -125,7 +123,6 @@ void DirectXCommon::InitializeDevice()
 #endif // _DEBUG
 }
 
-// ② コマンド関連の生成
 void DirectXCommon::InitializeCommand()
 {
 	// コマンドキュー
