@@ -5,6 +5,7 @@
 #include <dxgi1_6.h>
 #include <dxcapi.h>
 #include <cstdint>
+#include <chrono>
 #include "WinApp.h"
 
 class DirectXCommon
@@ -43,6 +44,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateDepthStencilTextureResource(int32_t width, int32_t height);
 
 private:
+	void InitializeFixFPS();
+	void UpdateFixFPS();
+
 	static constexpr UINT kBackBufferCount = 2;
 	static constexpr DXGI_FORMAT kRtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	static constexpr DXGI_FORMAT kDsvFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
@@ -76,4 +80,7 @@ private:
 	Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils_;
 	Microsoft::WRL::ComPtr<IDxcCompiler3> dxcCompiler_;
 	Microsoft::WRL::ComPtr<IDxcIncludeHandler> includeHandler_;
+
+	std::chrono::steady_clock::time_point reference_;
+
 };

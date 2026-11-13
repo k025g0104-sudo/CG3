@@ -1,6 +1,7 @@
 #include "DirectXCommon.h"
 #include <cassert>
 #include <format>
+#include <thread>
 #include "Logger.h"
 #include "StringUtility.h"
 #ifdef _DEBUG
@@ -20,6 +21,8 @@ void DirectXCommon::Initialize(WinApp* winApp)
 {
 
 	this->winApp_ = winApp;
+
+	InitializeFixFPS();
 
 	InitializeDevice();
 	InitializeCommand();
@@ -270,6 +273,11 @@ void DirectXCommon::InitializeImGui()
 #endif // _DEBUG
 }
 
+void DirectXCommon::InitializeFixFPS()
+{
+	reference_ = std::chrono::steady_clock::now();
+}
+
 void DirectXCommon::PreDraw()
 {
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
@@ -341,15 +349,42 @@ void DirectXCommon::PostDraw()
 	// GPUがまだ到達していなければ待つ
 	if (fence_->GetCompletedValue() < fenceValue_)
 	{
+		HANDLE event = CreateEvent(nullptr, FALSE, FALSE, nullptr);
 		fence_->SetEventOnCompletion(fenceValue_, fenceEvent_);
 		WaitForSingleObject(fenceEvent_, INFINITE);
+		CloseHandle(event);
 	}
+
+	UpdateFixFPS();
 
 	// 次のフレームのためにコマンドをリセット
 	hr = commandAllocator_->Reset();
 	assert(SUCCEEDED(hr));
 	hr = commandList_->Reset(commandAllocator_.Get(), nullptr);
 	assert(SUCCEEDED(hr));
+}
+
+void DirectXCommon::UpdateFixFPS()
+{
+	// 1/60秒ぴったりの時間
+	const std::chrono::microseconds kMinTime(uint64_t(1000000.0f / 60.0f));
+	// 1/60秒よりわずかに短い時間(60FPSを少し超える余裕)
+	const std::chrono::microseconds kMinCheckTime(uint64_t(1000000.0f / 65.0f));
+
+	auto now = std::chrono::steady_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(now - reference_);
+
+	// 1/60秒(よりわずかに短い時間)経っていない場合
+	if (elapsed < kMinCheckTime)
+	{
+		// 1/60秒経過するまで微小なスリープを繰り返す
+		while (std::chrono::steady_clock::now() - reference_ < kMinTime)
+		{
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
+	}
+	// 現在の時間を記録する
+	reference_ = std::chrono::steady_clock::now();
 }
 
 void DirectXCommon::Finalize()
