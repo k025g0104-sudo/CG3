@@ -540,7 +540,7 @@ IDxcBlob* CompileShader(
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
-	
+
 	LPCWSTR arguments[] =
 	{
 		filePath.c_str(),
@@ -859,7 +859,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 			}
 		}
 
-		else if (identifier == "mtllib") 
+		else if (identifier == "mtllib")
 		{
 			std::string materialFilename;
 			s >> materialFilename;
@@ -1262,7 +1262,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wc.lpfnWndProc = WindowProc;
 
 	//ウィンドウクラス名
-	wc.lpszClassName = L"LE2C_23_ハットリ_ユウマWindowClass";
+	wc.lpszClassName = L"CG2WindowClass";
 
 	//インスタンスハンドル
 	wc.hInstance = GetModuleHandle(nullptr);
@@ -2032,6 +2032,19 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	Vector3 prevMouseWorldPos = { 0.0f, 0.0f, 0.0f };
 
+	// ---- パーティクル調整用パラメータ ----
+	int     particleCount = 300;                    // 動かす数 (1〜kNumMaxInstance)
+	float   lifeTimeMin = 0.5f;                   // 寿命(最小)
+	float   lifeTimeMax = 2.0f;                   // 寿命(最大)
+	bool    windEnabled = true;                   // 一定の風
+	float   windAngle = 0.0f;                   // 風向き(rad) XY平面
+	float   windStrength = 10.0f;                  // 風の強さ
+	bool    windByMouse = true;                   // マウスの移動で風を起こす
+	float   mouseWindPower = 60.0f;                  // マウス風の強さ
+	Vector3 spawnRange = { 0.5f, 0.5f, 0.5f };   // 範囲：出現位置の散らばり(中心からの半径)
+	float   velocitySpread = 6.0f;                   // 範囲：初速の散らばり
+	bool    resetParticles = false;
+
 	//ウィンドウのｘボタンが押されるまでループ
 	while (msg.message != WM_QUIT)
 	{
@@ -2067,6 +2080,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
+#if 0
+			// ===== 旧ImGui（一旦無効化）=====
 			ImGui::Begin("Settings");
 			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
 
@@ -2185,6 +2200,42 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui::End();
 
 			ImGui::ShowDemoWindow();
+#endif
+
+			// ===== パーティクル調整用ImGui =====
+			ImGui::Begin("Particle Settings");
+
+			ImGui::SliderInt("Count", &particleCount, 1, static_cast<int>(kNumMaxInstance));
+
+			if (ImGui::CollapsingHeader("LifeTime", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::SliderFloat("Min", &lifeTimeMin, 0.1f, 10.0f);
+				ImGui::SliderFloat("Max", &lifeTimeMax, 0.1f, 10.0f);
+				if (lifeTimeMax < lifeTimeMin) { lifeTimeMax = lifeTimeMin; }
+			}
+
+			if (ImGui::CollapsingHeader("Wind", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::Checkbox("Constant Wind", &windEnabled);
+				ImGui::SliderAngle("Direction", &windAngle, 0.0f, 360.0f);
+				ImGui::SliderFloat("Strength", &windStrength, 0.0f, 100.0f);
+				ImGui::Separator();
+				ImGui::Checkbox("Wind By Mouse Move", &windByMouse);
+				ImGui::SliderFloat("Mouse Power", &mouseWindPower, 0.0f, 300.0f);
+			}
+
+			if (ImGui::CollapsingHeader("Spread (Range)", ImGuiTreeNodeFlags_DefaultOpen))
+			{
+				ImGui::DragFloat3("Spawn Range", &spawnRange.x, 0.01f, 0.0f, 20.0f);
+				ImGui::SliderFloat("Velocity Spread", &velocitySpread, 0.0f, 20.0f);
+			}
+
+			if (ImGui::Button("Reset Particles"))
+			{
+				resetParticles = true;
+			}
+
+			ImGui::End();
 
 #endif // DEBUG
 
@@ -2434,26 +2485,65 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				0.0f
 			};
 
-			float windPower = 60.0f;
-			accelerationField.acceleration = {
-				-mouseMove.x * windPower,
-				-mouseMove.y * windPower,
-				0.0f
-			};
+			// 風の加速度（一定風 + マウス移動風）
+			Vector3 wind = { 0.0f, 0.0f, 0.0f };
+			if (windEnabled)
+			{
+				wind.x += cosf(windAngle) * windStrength;
+				wind.y += sinf(windAngle) * windStrength;
+			}
+			if (windByMouse)
+			{
+				wind.x += -mouseMove.x * mouseWindPower;
+				wind.y += -mouseMove.y * mouseWindPower;
+			}
+			accelerationField.acceleration = wind;
 
+			// 風が当たる範囲（マウス中心・固定サイズ）
 			accelerationField.area.min = { currentMouseWorldPos.x - 10.0f, currentMouseWorldPos.y - 10.0f, -5.0f };
 			accelerationField.area.max = { currentMouseWorldPos.x + 10.0f, currentMouseWorldPos.y + 10.0f,  5.0f };
 
 			prevMouseWorldPos = currentMouseWorldPos;
-			uint32_t numInstance = 0;
-			for (uint32_t index = 0; index < kNumMaxInstance; ++index)
+			// 寿命をImGuiの値で決める
+			std::uniform_real_distribution<float> distLife(lifeTimeMin, lifeTimeMax);
+
+			// 散らばり具合を適用して生成する（出現位置と初速をImGuiの範囲でばらす）
+			auto rnd = [&](float r) -> float
+				{
+					return r > 0.0f ? std::uniform_real_distribution<float>(-r, r)(randamEngine) : 0.0f;
+				};
+			auto spawnParticle = [&](const Vector3& origin) -> Particle
+				{
+					Particle np = MakeNewParticle(randamEngine);
+					np.lifeTime = distLife(randamEngine);
+					np.transform.translate = {
+						origin.x + rnd(spawnRange.x),
+						origin.y + rnd(spawnRange.y),
+						origin.z + rnd(spawnRange.z) };
+					np.velocity = { rnd(velocitySpread), rnd(velocitySpread), rnd(velocitySpread) };
+					return np;
+				};
+
+			// Resetボタン：全パーティクルを作り直す
+			if (resetParticles)
 			{
-				// 寿命が尽きたらマウスの位置に追従して再生成
+				for (uint32_t i = 0; i < kNumMaxInstance; ++i)
+				{
+					particles[i] = spawnParticle(currentMouseWorldPos);
+					std::uniform_real_distribution<float> distStart(0.0f, particles[i].lifeTime);
+					particles[i].currentTime = distStart(randamEngine);
+				}
+				resetParticles = false;
+			}
+
+			uint32_t numInstance = 0;
+			const uint32_t activeCount = (std::min)(static_cast<uint32_t>(particleCount), kNumMaxInstance);
+			for (uint32_t index = 0; index < activeCount; ++index)
+			{
+				// 寿命が尽きたらマウス位置で再生成
 				if (particles[index].lifeTime <= particles[index].currentTime)
 				{
-					particles[index] = MakeNewParticle(randamEngine);
-					// 出現場所をマウスのワールド座標へ変更
-					particles[index].transform.translate = currentMouseWorldPos;
+					particles[index] = spawnParticle(currentMouseWorldPos);
 				}
 
 				// 資料画像の通り：位置を動かす前に Field（風）の加速度を適用
