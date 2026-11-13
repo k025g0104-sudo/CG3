@@ -303,7 +303,6 @@ void DirectXCommon::PreDraw()
 void DirectXCommon::PostDraw()
 {
 #ifdef _DEBUG
-	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList_.Get());
 
 	ImDrawData* drawData = ImGui::GetDrawData();
 	if (drawData)
