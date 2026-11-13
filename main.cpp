@@ -524,11 +524,8 @@ void Log(const std::string& message)
 }
 
 IDxcBlob* CompileShader(
-	//CompilerするShaderへのファイルへのパス
 	const std::wstring& filePath,
-	//Compilerに使用する
 	const wchar_t* profile,
-	//初期化で生成したものを３つ
 	IDxcUtils* dxcUtils,
 	IDxcCompiler3* dxcCompiler,
 	IDxcIncludeHandler* includeHandler)
@@ -845,19 +842,16 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 				triangle[faceVertex] = { posotion, texcoord, nomral };
 			}
 
-			// 元の巻き順維持のため [2],[1],[0] の順で処理
 			for (int32_t i = 2; i >= 0; --i)
 			{
 				auto it = std::find(modelData.vertics.begin(), modelData.vertics.end(), triangle[i]);
 				if (it != modelData.vertics.end())
 				{
-					// 既存頂点を再利用
 					uint32_t index = static_cast<uint32_t>(std::distance(modelData.vertics.begin(), it));
 					modelData.indices.push_back(index);
 				}
 				else
 				{
-					// 新規頂点を追加
 					uint32_t newIndex = static_cast<uint32_t>(modelData.vertics.size());
 					modelData.vertics.push_back(triangle[i]);
 					modelData.indices.push_back(newIndex);
