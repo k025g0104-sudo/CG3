@@ -530,7 +530,7 @@ IDxcBlob* CompileShader(
 	IDxcCompiler3* dxcCompiler,
 	IDxcIncludeHandler* includeHandler)
 {
-	//1.HLSLファイルを読む
+
 	Log(ConvertString(std::format(L"Begin CompilerShader, path:{}, profile:{}\n", filePath, profile)));
 	IDxcBlobEncoding* shaderSource = nullptr;
 	HRESULT hr = dxcUtils->LoadFile(filePath.c_str(), nullptr, &shaderSource);
@@ -540,7 +540,7 @@ IDxcBlob* CompileShader(
 	shaderSourceBuffer.Ptr = shaderSource->GetBufferPointer();
 	shaderSourceBuffer.Size = shaderSource->GetBufferSize();
 	shaderSourceBuffer.Encoding = DXC_CP_UTF8;
-	//2.Compileする
+	
 	LPCWSTR arguments[] =
 	{
 		filePath.c_str(),
@@ -859,7 +859,7 @@ ModelData LoadObjFile(const std::string& directoryPath, const std::string& filen
 			}
 		}
 
-		else if (identifier == "mtllib")   // ★これを追加
+		else if (identifier == "mtllib") 
 		{
 			std::string materialFilename;
 			s >> materialFilename;
