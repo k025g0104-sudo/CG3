@@ -19,7 +19,7 @@ using namespace Microsoft::WRL;
 void DirectXCommon::Initialize(WinApp* winApp)
 {
 
-	winApp_ = winApp;
+	this->winApp_ = winApp;
 
 	InitializeDevice();
 	InitializeCommand();
@@ -304,6 +304,13 @@ void DirectXCommon::PostDraw()
 {
 #ifdef _DEBUG
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList_.Get());
+
+	ImDrawData* drawData = ImGui::GetDrawData();
+	if (drawData)
+	{
+		ImGui_ImplDX12_RenderDrawData(drawData, commandList_.Get());
+	}
+
 #endif // _DEBUG
 
 	UINT backBufferIndex = swapChain_->GetCurrentBackBufferIndex();
