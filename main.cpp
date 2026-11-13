@@ -1262,7 +1262,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	wc.lpfnWndProc = WindowProc;
 
 	//ウィンドウクラス名
-	wc.lpszClassName = L"CG2WindowClass";
+	wc.lpszClassName = L"LE2C_23_ハットリ_ユウマWindowClass";
 
 	//インスタンスハンドル
 	wc.hInstance = GetModuleHandle(nullptr);
@@ -1285,7 +1285,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//ウィンドウの生成
 	HWND hwnd = CreateWindow(
 		wc.lpszClassName, //利用するクラス名
-		L"CG2", //タイトルバーの文字
+		L"LE2C_23_ハットリ_ユウマ", //タイトルバーの文字
 		WS_OVERLAPPEDWINDOW,//よく見るウィンドウスタイル
 		CW_USEDEFAULT,//表示X座標（OSに任せる）
 		CW_USEDEFAULT,//表示Y座標（OSに任せる）
