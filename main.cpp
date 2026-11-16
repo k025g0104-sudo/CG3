@@ -12,13 +12,13 @@
 #include <algorithm> 
 #include <wrl.h>
 #include <xaudio2.h>
-#include "DebugCamera.h"
-#include "Input.h"
-#include "WinApp.h"
-#include "DirectXCommon.h"
-#include "D3DResourceLeakChecker.h"
-#include "Logger.h"
-#include "StringUtility.h"
+#include "Debug/DebugCamera.h"
+#include "Input/Input.h"
+#include "System/WinApp.h"
+#include "System/DirectXCommon.h"
+#include "Utility/D3DResourceLeakChecker.h"
+#include "Debug/Logger.h"
+#include "Utility/StringUtility.h"
 #ifdef _DEBUG
 #include "externals/imgui/imgui.h"
 #include "externals/imgui/imgui_impl_win32.h"
@@ -1026,10 +1026,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
 
 	//Shaderをコンパイルする
-	IDxcBlob* vertexShaderBlob = dxCommon->CompileShader(L"Object3d.VS.hlsl", L"vs_6_0");
+	IDxcBlob* vertexShaderBlob = dxCommon->CompileShader(L"Shaders/Object3d.VS.hlsl", L"vs_6_0");
 	assert(vertexShaderBlob != nullptr);
 
-	IDxcBlob* pixelShaderBlob = dxCommon->CompileShader(L"Object3d.PS.hlsl", L"ps_6_0");
+	IDxcBlob* pixelShaderBlob = dxCommon->CompileShader(L"Shaders/Object3d.PS.hlsl", L"ps_6_0");
 	assert(pixelShaderBlob != nullptr);
 
 	hr = D3D12SerializeRootSignature(&descriptionRootSignature, D3D_ROOT_SIGNATURE_VERSION_1, &signatureBlob, &errorBlob);

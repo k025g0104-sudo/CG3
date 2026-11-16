@@ -4,7 +4,7 @@
 #include <format>
 #include <thread>
 #include "Logger.h"
-#include "StringUtility.h"
+#include "Stringutility.h"
 
 #ifdef _DEBUG
 #include "externals/imgui/imgui.h"
