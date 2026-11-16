@@ -716,9 +716,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	D3DResourceLeakChecker leakCheck;
 
+	// DirectXの初期化(デバイス〜ImGuiまで全部ここ)
 	DirectXCommon* dxCommon = new DirectXCommon();
 	dxCommon->Initialize(winApp);
 
+	// 以降のコードで使うので DirectXCommon から借りてくる
 	HRESULT hr = S_OK;
 	Microsoft::WRL::ComPtr<ID3D12Device> device = dxCommon->GetDevice();
 	ID3D12GraphicsCommandList* commandList = dxCommon->GetCommandList();
@@ -734,6 +736,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	Microsoft::WRL::ComPtr<ID3D12Resource> textureResource2 = dxCommon->CreateTextureResource(metadata2);
 	dxCommon->UploadTextureData(textureResource2.Get(), mipImages2);
 
+	//metadataを基にSRVの設定
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -749,10 +752,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	const uint32_t desriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
+
+
+	//SRVを作成するDescriptorHeapの場所を決める (0番はImGui用、1番=uvChecker、2番=fence)
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHadleCPU = GetCPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 1);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU = GetGPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 1);
 	D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHadleCPU2 = GetCPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 2);
 	D3D12_GPU_DESCRIPTOR_HANDLE textureSrvHandleGPU2 = GetGPUDescriptorHandle(srvDescriptorHeap.Get(), desriptorSizeSRV, 2);
+	//SRV生成
 	device->CreateShaderResourceView(textureResource.Get(), &srvDesc, textureSrvHadleCPU);
 	device->CreateShaderResourceView(textureResource2.Get(), &srvDesc2, textureSrvHadleCPU2);
 
