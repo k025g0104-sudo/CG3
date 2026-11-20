@@ -13,6 +13,7 @@
 #include <algorithm> 
 #include <wrl.h>
 #include <xaudio2.h>
+#include <numbers>
 #include "DebugCamera.h"
 #include <random>
 #ifdef USE_IMGUI
@@ -1841,8 +1842,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	CameraTransform cameraTransform
 	{
 		{ 1.0f, 1.0f, 1.0f },
-		{ 0.0f, 0.0f, 0.0f },
-		{ 0.0f, 0.0f, -5.0f }
+		{ std::numbers::pi_v<float>/ 3.0f,std::numbers::pi_v<float>,0.0f },
+		{ 0.0f, 23.0f, 10.0f }
 	};
 
 	Transform transformSprite
@@ -2140,11 +2141,21 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				}
 			}
 
-			Matrix4x4 worldMatrix = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			Matrix4x4 backToFrontMatrix = rotateY(std::numbers::pi_v<float>);
+
+			Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
+
+			Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, cameraMatrix);
+			billboardMatrix.m[3][0] = 0.0f;
+			billboardMatrix.m[3][1] = 0.0f;
+			billboardMatrix.m[3][2] = 0.0f;
+
+
+			Matrix4x4 worldMatrix = MakeScaleMatrix * billboardMatrix * MakeTranslationMatrix;
 
 			Matrix4x4 viewMatrix;
 			Matrix4x4 projctionMatrix;
-
+			
 			if (useDebugCamera)
 			{
 				// デバッグカメラ(キー操作で動くカメラ)
@@ -2156,7 +2167,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			}
 			else
 			{
-				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
 				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
 			}
