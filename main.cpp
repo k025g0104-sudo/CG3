@@ -725,6 +725,7 @@ ID3D12Resource* CreateDepthStencilTextureResouce(ID3D12Device* device, int32_t w
 
 bool useMonsterBall = false;
 bool useDebugCamera = true;
+bool useBillboard = true;
 bool enableObjectRotation = false;
 bool planeMode = true;
 bool sphereMode = false;
@@ -1675,7 +1676,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_NONE;
 
 	//三角形の中を塗りつぶす
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
@@ -1842,7 +1843,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	CameraTransform cameraTransform
 	{
 		{ 1.0f, 1.0f, 1.0f },
-		{ std::numbers::pi_v<float>/ 3.0f,std::numbers::pi_v<float>,0.0f },
+		{ std::numbers::pi_v<float> / 3.0f,std::numbers::pi_v<float>,0.0f },
 		{ 0.0f, 23.0f, 10.0f }
 	};
 
@@ -2027,6 +2028,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			if (ImGui::CollapsingHeader("Camera"))
 			{
 				ImGui::Checkbox("Use Debug Camera", &useDebugCamera);
+				ImGui::Checkbox("useBillboard", &useBillboard);
 			}
 
 			if (ImGui::CollapsingHeader("Object"))
@@ -2141,21 +2143,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				}
 			}
 
-			Matrix4x4 backToFrontMatrix = rotateY(std::numbers::pi_v<float>);
-
-			Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
-
-			Matrix4x4 billboardMatrix = Multiply(backToFrontMatrix, cameraMatrix);
-			billboardMatrix.m[3][0] = 0.0f;
-			billboardMatrix.m[3][1] = 0.0f;
-			billboardMatrix.m[3][2] = 0.0f;
-
-
-			Matrix4x4 worldMatrix = MakeScaleMatrix * billboardMatrix * MakeTranslationMatrix;
+			Matrix4x4 worldMatrix = makeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 
 			Matrix4x4 viewMatrix;
 			Matrix4x4 projctionMatrix;
-			
+
 			if (useDebugCamera)
 			{
 				// デバッグカメラ(キー操作で動くカメラ)
@@ -2167,8 +2159,21 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			}
 			else
 			{
+				Matrix4x4 cameraMatrix = makeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 				viewMatrix = Inverse(cameraMatrix);
 				projctionMatrix = MakePerspectiveFovMatrix(1.047f, static_cast<float>(kClientWidth) / kClientHeight, 0.1f, 100.0f);
+			}
+
+			Matrix4x4 billboardMatrix = MakeIdentityMatrix4x4();
+
+			if (useBillboard)
+			{
+				Matrix4x4 backToFrontMatrix = rotateY(std::numbers::pi_v<float>);
+				Matrix4x4 cameraWorldMatrix = Inverse(viewMatrix);
+				cameraWorldMatrix.m[3][0] = 0.0f;
+				cameraWorldMatrix.m[3][1] = 0.0f;
+				cameraWorldMatrix.m[3][2] = 0.0f;
+				billboardMatrix = Multiply(backToFrontMatrix, cameraWorldMatrix);
 			}
 
 			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projctionMatrix));
@@ -2310,7 +2315,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 				if (particles[index].lifeTime <= particles[index].currentTime)
 				{
-					continue;
+					particles[index] = MakeNewParticle(randamEngine);
 				}
 
 
@@ -2320,10 +2325,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 				particles[index].currentTime += kDeltaTime;
 
 
-				Matrix4x4 world = makeAffineMatrix(
-					particles[index].transform.scale,
-					particles[index].transform.rotate,
-					particles[index].transform.translate);
+				Matrix4x4 world = Multiply(
+					Multiply(MakeScaleMatrix(particles[index].transform.scale), billboardMatrix),
+					MakeTranslationMatrix(particles[index].transform.translate));
 
 				instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
 				instancingData[numInstance].world = world;
