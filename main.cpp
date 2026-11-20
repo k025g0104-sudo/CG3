@@ -2329,7 +2329,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					Multiply(MakeScaleMatrix(particles[index].transform.scale), billboardMatrix),
 					MakeTranslationMatrix(particles[index].transform.translate));
 
-				instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
 				instancingData[numInstance].world = world;
 				instancingData[numInstance].color = particles[index].color;
 				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
