@@ -14,6 +14,7 @@
 #include <wrl.h>
 #include <xaudio2.h>
 #include <numbers>
+#include <list>
 #include "DebugCamera.h"
 #include <random>
 #ifdef USE_IMGUI
@@ -134,6 +135,11 @@ bool operator==(const Vector3& a, const Vector3& b)
 	return a.x == b.x && a.y == b.y && a.z == b.z;
 }
 
+Vector3 operator+(const Vector3& a, const Vector3& b)
+{
+	return { a.x + b.x, a.y + b.y, a.z + b.z };
+}
+
 bool operator==(const Vector4& a, const Vector4& b)
 {
 	return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
@@ -224,6 +230,14 @@ struct SoundData
 	WAVEFORMATEX wfex;
 	BYTE* pBuffer;
 	unsigned int bufferSize;
+};
+
+struct Emitter
+{
+	Transform transform;//エミッタのTransform
+	uint32_t count;//発生数
+	float frequcy;//発生速度
+	float frequencyTime;//頻度用時刻
 };
 
 class ResourceObject
@@ -1017,13 +1031,14 @@ std::random_device seedGenerator;
 
 std::mt19937 randamEngine(seedGenerator());
 
-Particle MakeNewParticle(std::mt19937& randamEngine)
+Particle MakeNewParticle(std::mt19937& randamEngine, const Vector3& translate)
 {
 	std::uniform_real_distribution<float>distribution(-1.0f, 1.0f);
 	Particle particle;
 	particle.transform.scale = { 1.0f,1.0f,1.0f };
 	particle.transform.rotate = { 0.0f,0.0f,0.0f };
-	particle.transform.translate = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
+	Vector3 randomTranslate{ distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
+	particle.transform.translate = translate + randomTranslate;
 	particle.velocity = { distribution(randamEngine),distribution(randamEngine),distribution(randamEngine) };
 	std::uniform_real_distribution<float>distColor(0.0f, 1.0f);
 	particle.color = { distColor(randamEngine),distColor(randamEngine),distColor(randamEngine),1.0f };
@@ -1031,6 +1046,16 @@ Particle MakeNewParticle(std::mt19937& randamEngine)
 	particle.lifeTime = distTime(randamEngine);
 	particle.currentTime = 0;
 	return particle;
+}
+
+std::list<Particle> Emit(const Emitter& emitter, std::mt19937& randamEngine)
+{
+	std::list<Particle> particles;
+	for (uint32_t count = 0; count < emitter.count; count++)
+	{
+		particles.push_back(MakeNewParticle(randamEngine, emitter.transform.translate));
+	}
+	return particles;
 }
 
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
@@ -1596,7 +1621,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	//wvpDataSphere->WVP = MakeIdentity4x4();
 	//wvpDataSphere->world = MakeIdentity4x4();
 
-	const uint32_t kNumMaxInstance = 10;
+	const uint32_t kNumMaxInstance = 100;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource = CreateBufferResource(device.Get(), sizeof(ParticleForGPU) * kNumMaxInstance);
 
@@ -1606,11 +1631,10 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 
 	const float kDeltaTime = 1.0f / 60.0f;
 
-	Particle particles[kNumMaxInstance];
-	for (uint32_t index = 0; index < kNumMaxInstance; ++index)
-	{
-		particles[index] = MakeNewParticle(randamEngine);
-	}
+	std::list<Particle> particles;
+	particles.push_back(MakeNewParticle(randamEngine, { 0.0f,0.0f,0.0f }));
+	particles.push_back(MakeNewParticle(randamEngine, { 0.0f,0.0f,0.0f }));
+	particles.push_back(MakeNewParticle(randamEngine, { 0.0f,0.0f,0.0f }));
 
 	instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
 
@@ -1885,6 +1909,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	indexDataSprite[0] = 0; indexDataSprite[1] = 1;  indexDataSprite[2] = 2;
 	indexDataSprite[3] = 1; indexDataSprite[4] = 3;  indexDataSprite[5] = 2;
 
+	Emitter emitter{};
+	emitter.count = 3;
+	emitter.frequcy = 0.5f;
+	emitter.frequencyTime = 0.0f;
+	emitter.transform.translate = { 0.0f, 0.0f, 0.0f };
+	emitter.transform.rotate = { 0.0f, 0.0f, 0.0f };
+	emitter.transform.scale = { 1.0f, 1.0f, 1.0f };
+
 	//if (bunnyMode)
 	//{
 	//	DirectX::ScratchImage mipImage4 = LoadTexture(modelData2.material.textureFilepath);
@@ -1965,6 +1997,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			ImGui_ImplDX12_NewFrame();
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
+
+			ImGui::Begin("MakeParticle");
+			if (ImGui::Button("Add Particle"))
+			{
+				particles.splice(particles.end(), Emit(emitter, randamEngine));
+			}
+			ImGui::DragFloat3("EmitterTranslate", &emitter.transform.translate.x, 0.01f, -100.0f, 100.0f);
+			ImGui::End();
 
 			ImGui::Begin("Settings");
 			ImGui::Text("Hold Right Click & Drag : Rotation Obj ");
@@ -2309,32 +2349,45 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 			commandList->IASetVertexBuffers(0, 1, &vertexBufferViewPlane);
 			commandList->IASetIndexBuffer(&indexBufferViewPlane);
 
+			emitter.frequencyTime += kDeltaTime;
+			if (emitter.frequcy <= emitter.frequencyTime)
+			{
+				particles.splice(particles.end(), Emit(emitter, randamEngine));
+				emitter.frequencyTime -= emitter.frequcy;
+			}
+
 			uint32_t numInstance = 0;
-			for (uint32_t index = 0; index < kNumMaxInstance; ++index)
+			for (std::list<Particle>::iterator particleIterator = particles.begin(); particleIterator != particles.end();)
 			{
 
-				if (particles[index].lifeTime <= particles[index].currentTime)
+				if ((*particleIterator).lifeTime <= (*particleIterator).currentTime)
 				{
-					particles[index] = MakeNewParticle(randamEngine);
+					particleIterator = particles.erase(particleIterator);
+					continue;
 				}
 
 
-				particles[index].transform.translate.x += particles[index].velocity.x * kDeltaTime;
-				particles[index].transform.translate.y += particles[index].velocity.y * kDeltaTime;
-				particles[index].transform.translate.z += particles[index].velocity.z * kDeltaTime;
-				particles[index].currentTime += kDeltaTime;
+				(*particleIterator).transform.translate.x += (*particleIterator).velocity.x * kDeltaTime;
+				(*particleIterator).transform.translate.y += (*particleIterator).velocity.y * kDeltaTime;
+				(*particleIterator).transform.translate.z += (*particleIterator).velocity.z * kDeltaTime;
+				(*particleIterator).currentTime += kDeltaTime;
 
 
 				Matrix4x4 world = Multiply(
-					Multiply(MakeScaleMatrix(particles[index].transform.scale), billboardMatrix),
-					MakeTranslationMatrix(particles[index].transform.translate));
+					Multiply(MakeScaleMatrix((*particleIterator).transform.scale), billboardMatrix),
+					MakeTranslationMatrix((*particleIterator).transform.translate));
 
-				instancingData[numInstance].world = world;
-				instancingData[numInstance].color = particles[index].color;
-				float alpha = 1.0f - (particles[index].currentTime / particles[index].lifeTime);
-				instancingData[numInstance].color.w = alpha;
+				if (numInstance < kNumMaxInstance)
+				{
+					instancingData[numInstance].WVP = Multiply(world, Multiply(viewMatrix, projctionMatrix));
+					instancingData[numInstance].world = world;
+					instancingData[numInstance].color = (*particleIterator).color;
+					float alpha = 1.0f - ((*particleIterator).currentTime / (*particleIterator).lifeTime);
+					instancingData[numInstance].color.w = alpha;
 
-				++numInstance;
+					++numInstance;
+				}
+				++particleIterator;
 			}
 
 			commandList->SetGraphicsRootDescriptorTable(1, instanceSrvHandleGPU);
