@@ -150,6 +150,9 @@ bool operator==(const VertexData& a, const VertexData& b)
 	return a.position == b.position && a.texcoord == b.texcoord && a.normal == b.normal;
 }
 
+bool IsCollision(const AABB& aabb, const Vector3& point);
+
+
 struct Material
 {
 	Vector4 color;
@@ -238,6 +241,18 @@ struct Emitter
 	uint32_t count;//発生数
 	float frequcy;//発生速度
 	float frequencyTime;//頻度用時刻
+};
+
+struct  AABB
+{
+	Vector3 min;
+	Vector3 max;
+};
+
+struct AccelerationField
+{
+	Vector3 accelertion;
+	AABB area;
 };
 
 class ResourceObject
@@ -1916,6 +1931,11 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 	emitter.transform.translate = { 0.0f, 0.0f, 0.0f };
 	emitter.transform.rotate = { 0.0f, 0.0f, 0.0f };
 	emitter.transform.scale = { 1.0f, 1.0f, 1.0f };
+
+	AccelerationField accelerationFeid;
+	accelerationFeid.accelertion = { 15.0f,0.0f,0.0f };
+	accelerationFeid.area.min = { 15.0f,0.0f,0.0f };
+	accelerationFeid.area.max = { 1.0f,1.0f,1.0f };
 
 	//if (bunnyMode)
 	//{
