@@ -150,7 +150,6 @@ bool operator==(const VertexData& a, const VertexData& b)
 	return a.position == b.position && a.texcoord == b.texcoord && a.normal == b.normal;
 }
 
-bool IsCollision(const AABB& aabb, const Vector3& point);
 
 
 struct Material
@@ -237,10 +236,10 @@ struct SoundData
 
 struct Emitter
 {
-	Transform transform;//エミッタのTransform
-	uint32_t count;//発生数
-	float frequcy;//発生速度
-	float frequencyTime;//頻度用時刻
+	Transform transform;
+	uint32_t count;
+	float frequcy;
+	float frequencyTime;
 };
 
 struct  AABB
@@ -254,6 +253,13 @@ struct AccelerationField
 	Vector3 accelertion;
 	AABB area;
 };
+
+bool IsCollision(const AABB& aabb, const Vector3& point)
+{
+	return (point.x >= aabb.min.x && point.x <= aabb.max.x) &&
+		(point.y >= aabb.min.y && point.y <= aabb.max.y) &&
+		(point.z >= aabb.min.z && point.z <= aabb.max.z);
+}
 
 class ResourceObject
 {
@@ -2386,6 +2392,12 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int)
 					continue;
 				}
 
+				if (IsCollision(accelerationFeid.area, (*particleIterator).transform.translate))
+				{
+					(*particleIterator).velocity.x += accelerationFeid.accelertion.x * kDeltaTime;
+					(*particleIterator).velocity.y += accelerationFeid.accelertion.y * kDeltaTime;
+					(*particleIterator).velocity.z += accelerationFeid.accelertion.z * kDeltaTime;
+				}
 
 				(*particleIterator).transform.translate.x += (*particleIterator).velocity.x * kDeltaTime;
 				(*particleIterator).transform.translate.y += (*particleIterator).velocity.y * kDeltaTime;
